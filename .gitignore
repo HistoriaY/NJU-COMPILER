@@ -1,0 +1,8 @@
+/parser
+/Code/lex.yy.c
+/Code/main.o
+/Code/parser
+/Code/syntax.output
+/Code/syntax.tab.*
+/Test/
+/report.pdf
