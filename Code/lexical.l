@@ -18,6 +18,7 @@
         temp->tev = tev;
         return temp;
     }
+    void set_error();
 %}
 %option yylineno
 WHITESPACE [ \r\t]
@@ -197,5 +198,5 @@ ID [a-zA-Z_][a-zA-Z0-9_]*
     yylval.node_ptr = create_token_node("ID",yylineno,tev);
     return ID;
 }
-. { printf("Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext); }
+. { set_error(); printf("Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext); }
 %%

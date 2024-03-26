@@ -13,6 +13,7 @@
         }
         return temp;
   }
+  void set_error();
 %}
 %locations
 %union {
@@ -155,5 +156,6 @@ Args: Exp COMMA Args {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("A
 ;
 %%
 yyerror(char* msg) {
+  set_error();
   printf("Error type B at Line %d: %s\n", yylineno, msg);
 }

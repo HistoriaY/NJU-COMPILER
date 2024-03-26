@@ -2,6 +2,13 @@
 #include "typedef.h"
 node_t *root;
 
+static int error = 0;
+
+void set_error()
+{
+    error = 1;
+}
+
 void print_node_info(node_t *node, int indent)
 {
     // print indent
@@ -52,7 +59,8 @@ int main(int argc, char **argv)
     }
     yyrestart(f);
     yyparse();
-    print_node_info(root, 0);
+    if (!error)
+        print_node_info(root, 0);
     fclose(f);
     return 0;
 }
