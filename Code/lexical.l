@@ -22,7 +22,7 @@
 %}
 %option yylineno
 WHITESPACE [ \r\t]
-INT 0|[1-9][0-9]*
+INT [1-9][0-9]*|0[0-7]*|0[xX][0-9a-fA-F]+
 FLOAT [0-9]+\.[0-9]+
 ID [a-zA-Z_][a-zA-Z0-9_]*
 %%
@@ -182,7 +182,8 @@ ID [a-zA-Z_][a-zA-Z0-9_]*
 \n { yycolumn = 1; }
 {INT} {
     token_extra_value_t tev;
-    tev.int_val = atoi(yytext);
+    char *endptr;
+    tev.int_val = strtol(yytext, &endptr, 0);
     yylval.node_ptr = create_token_node("INT",yylineno,tev);
     return INT;
 }
