@@ -68,27 +68,28 @@ ExtDecList: VarDec {node_t* children[1] = {$1}; $$ = create_tree_node("ExtDecLis
 // Specifiers
 Specifier: TYPE {node_t* children[1] = {$1}; $$ = create_tree_node("Specifier",@1.first_line,children,1);}
 | StructSpecifier {node_t* children[1] = {$1}; $$ = create_tree_node("Specifier",@1.first_line,children,1);}
-| error {}
+| error ID {}
 ;
 StructSpecifier: STRUCT OptTag LC DefList RC {node_t* children[5] = {$1,$2,$3,$4,$5}; $$ = create_tree_node("StructSpecifier",@1.first_line,children,5);}
 | STRUCT Tag {node_t* children[2] = {$1,$2}; $$ = create_tree_node("StructSpecifier",@1.first_line,children,2);}
-| error {}
+| error RC {}
 ;
 OptTag: ID {node_t* children[1] = {$1}; $$ = create_tree_node("OptTag",@1.first_line,children,1);}
 | {$$ = NULL;}
 | error {}
 ;
 Tag: ID {node_t* children[1] = {$1}; $$ = create_tree_node("Tag",@1.first_line,children,1);}
-| error {}
+| error INT ID {}
 ;
 // Declarators
 VarDec: ID {node_t* children[1] = {$1}; $$ = create_tree_node("VarDec",@1.first_line,children,1);}
 | VarDec LB INT RB {node_t* children[4] = {$1,$2,$3,$4}; $$ = create_tree_node("VarDec",@1.first_line,children,4);}
-| error {}
+| error INT ID {}
+| error RB {}
 ;
 FunDec: ID LP VarList RP {node_t* children[4] = {$1,$2,$3,$4}; $$ = create_tree_node("FunDec",@1.first_line,children,4);}
 | ID LP RP {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("FunDec",@1.first_line,children,3);}
-| error {}
+| error RP {}
 ;
 VarList: ParamDec COMMA VarList {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("VarList",@1.first_line,children,3);}
 | ParamDec {node_t* children[1] = {$1}; $$ = create_tree_node("VarList",@1.first_line,children,1);}
@@ -99,7 +100,7 @@ ParamDec: Specifier VarDec {node_t* children[2] = {$1,$2}; $$ = create_tree_node
 ;
 // Statements
 CompSt: LC DefList StmtList RC {node_t* children[4] = {$1,$2,$3,$4}; $$ = create_tree_node("CompSt",@1.first_line,children,4);}
-| error {}
+| error RC {}
 ;
 StmtList: Stmt StmtList {node_t* children[2] = {$1,$2}; $$ = create_tree_node("StmtList",@1.first_line,children,2);}
 | {$$ = NULL;}
@@ -111,7 +112,7 @@ Stmt: Exp SEMI {node_t* children[2] = {$1,$2}; $$ = create_tree_node("Stmt",@1.f
 | IF LP Exp RP Stmt %prec LOWER_THAN_ELSE {node_t* children[5] = {$1,$2,$3,$4,$5}; $$ = create_tree_node("Stmt",@1.first_line,children,5);}
 | IF LP Exp RP Stmt ELSE Stmt {node_t* children[7] = {$1,$2,$3,$4,$5,$6,$7}; $$ = create_tree_node("Stmt",@1.first_line,children,7);}
 | WHILE LP Exp RP Stmt {node_t* children[5] = {$1,$2,$3,$4,$5}; $$ = create_tree_node("Stmt",@1.first_line,children,5);}
-| error {}
+| error SEMI {}
 ;
 // Local Definitions
 DefList: Def DefList {node_t* children[2] = {$1,$2}; $$ = create_tree_node("DefList",@1.first_line,children,2);}
@@ -119,7 +120,7 @@ DefList: Def DefList {node_t* children[2] = {$1,$2}; $$ = create_tree_node("DefL
 | error {}
 ;
 Def: Specifier DecList SEMI {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("Def",@1.first_line,children,3);}
-| error {}
+| error SEMI {}
 ;
 DecList: Dec {node_t* children[1] = {$1}; $$ = create_tree_node("DecList",@1.first_line,children,1);}
 | Dec COMMA DecList {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("DecList",@1.first_line,children,3);}
