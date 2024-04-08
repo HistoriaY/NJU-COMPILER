@@ -28,13 +28,13 @@ ID [a-zA-Z_][a-zA-Z0-9_]*
 %%
 "int" {
     token_extra_value_t tev;
-    tev.type = type_INT;
+    tev.type = TYPE_token_INT;
     yylval.node_ptr = create_token_node("TYPE",yylineno,tev);
     return TYPE;
 }
 "float" {
     token_extra_value_t tev;
-    tev.type = type_FLOAT;
+    tev.type = TYPE_token_FLOAT;
     yylval.node_ptr = create_token_node("TYPE",yylineno,tev);
     return TYPE;
 }

@@ -35,9 +35,9 @@ void print_node_info(node_t *node, int indent)
             printf(": %s\n", node->tev.id);
         else if (strcmp(node->name, "TYPE") == 0)
         {
-            if (node->tev.type == type_INT)
+            if (node->tev.type == TYPE_token_INT)
                 printf(": int\n");
-            else if (node->tev.type == type_FLOAT)
+            else if (node->tev.type == TYPE_token_FLOAT)
                 printf(": float\n");
         }
         else if (strcmp(node->name, "INT") == 0)

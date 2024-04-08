@@ -9,8 +9,8 @@ typedef union token_extra_value
     // TYPE
     enum type_t
     {
-        type_INT,
-        type_FLOAT
+        TYPE_token_INT,
+        TYPE_token_FLOAT
     } type;
     // INT
     int int_val;
@@ -36,11 +36,11 @@ struct type_s
 {
     enum
     {
-        INT,
-        FLOAT,
-        FUNCTION,
-        ARRAY,
-        STRUCTURE
+        type_sys_INT,
+        type_sys_FLOAT,
+        type_sys_FUNCTION,
+        type_sys_ARRAY,
+        type_sys_STRUCTURE
     } kind;
     union
     {
