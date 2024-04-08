@@ -1,6 +1,8 @@
 #include <stdio.h>
+#include <string.h>
 #include "typedef.h"
 node_t *root;
+symbol_table_t symbol_table;
 
 static int error = 0;
 
