@@ -15,11 +15,15 @@ void print_node_info(node_t *node, int indent)
     for (int i = 0; i < indent; ++i)
         printf("  ");
 
-    // is_terminal
+    // judge is_terminal
     if (node->is_terminal == 0)
     {
         // non_terminal
         printf("%s (%d)\n", node->name, node->first_line);
+        // children node
+        for (int i = 0; i < 7; ++i)
+            if (node->children[i] != NULL)
+                print_node_info(node->children[i], indent + 1);
     }
     else
     {
@@ -41,10 +45,6 @@ void print_node_info(node_t *node, int indent)
         else
             printf("\n");
     }
-    // children node
-    for (int i = 0; i < 7; ++i)
-        if (node->children[i] != NULL)
-            print_node_info(node->children[i], indent + 1);
 }
 
 int main(int argc, char **argv)
