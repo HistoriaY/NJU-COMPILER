@@ -1,6 +1,6 @@
 /parser
 /Code/lex.yy.c
-/Code/main.o
+/Code/*.o
 /Code/parser
 /Code/syntax.output
 /Code/syntax.tab.*
