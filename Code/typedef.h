@@ -45,8 +45,7 @@ struct type_s
     union
     {
         // basic type
-        int int_val;
-        float float_val;
+        int basic;
         // function type
         struct
         {
