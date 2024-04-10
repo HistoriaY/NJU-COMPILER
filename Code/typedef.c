@@ -44,3 +44,28 @@ void insert_symbol(symbol_t *symbol_ptr)
     new_node_ptr->symbol_ptr = symbol_ptr;
     insert_list(&symbol_table[val], new_node_ptr);
 }
+
+int same_type(type_ptr t1, type_ptr t2)
+{
+    if (t1 == NULL || t2 == NULL)
+        return 0;
+    if (t1->kind != t2->kind)
+        return 0;
+    if (t1->kind == type_sys_INT || t1->kind == type_sys_FLOAT)
+        return 1;
+    if (t1->kind == type_sys_ARRAY)
+    {
+        return same_type(t1->u.array.elem_type, t2->u.array.elem_type);
+    }
+    if (t1->kind == type_sys_STRUCTURE)
+    {
+        if (strcmp(t1->u.structure.struct_name, t2->u.structure.struct_name) == 0)
+            return 1;
+        return 0;
+    }
+    if (t1->kind == type_sys_FUNCTION)
+    {
+        // PASS
+        return 0;
+    }
+}

@@ -75,6 +75,6 @@ Def_info_t deal_Def(node_t *node);
 
 DefList_info_t deal_DefList(node_t *node, int prev_def_num);
 
-void deal_Exp(node_t *node);
+type_ptr deal_Exp(node_t *node);
 
 void semantic_analysis(node_t *root);

@@ -69,6 +69,8 @@ struct type_s
     } u;
 };
 
+int same_type(type_ptr t1, type_ptr t2);
+
 struct struct_field_s
 {
     type_ptr type;               // field type

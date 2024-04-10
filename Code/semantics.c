@@ -358,21 +358,217 @@ DefList_info_t deal_DefList(node_t *node, int prev_def_num)
     }
 }
 
-void deal_Exp(node_t *node)
+type_ptr deal_Exp(node_t *node)
 {
+    node_t *first_child = node->children[0];
+    node_t *second_child = node->children[1];
     // Exp: Exp ASSIGNOP Exp
-
-    // Exp: Exp AND Exp | Exp OR Exp| NOT Exp
-
-    // Exp: Exp PLUS Exp | Exp MINUS Exp | Exp STAR Exp | Exp DIV Exp| Exp RELOP Exp| LP Exp RP| MINUS Exp %prec NEG
-
+    if (strcmp(second_child->name, "ASSIGNOP") == 0)
+    {
+        type_ptr t1 = deal_Exp(node->children[0]);
+        type_ptr t2 = deal_Exp(node->children[2]);
+        if (!same_type(t1, t2))
+        {
+            semantic_error_print(5, second_child->first_line, "ASSIGNOP mismatch types");
+            return NULL;
+        }
+        return t1;
+    }
+    // Exp: Exp AND Exp | Exp OR Exp | NOT Exp
+    if (strcmp(second_child->name, "AND") == 0)
+    {
+        type_ptr t1 = deal_Exp(node->children[0]);
+        type_ptr t2 = deal_Exp(node->children[2]);
+        if (!same_type(t1, t2) || t1->kind != type_sys_INT)
+        {
+            semantic_error_print(7, second_child->first_line, "AND OP only for int");
+            return NULL;
+        }
+        return t1;
+    }
+    if (strcmp(second_child->name, "OR") == 0)
+    {
+        type_ptr t1 = deal_Exp(node->children[0]);
+        type_ptr t2 = deal_Exp(node->children[2]);
+        if (!same_type(t1, t2) || t1->kind != type_sys_INT)
+        {
+            semantic_error_print(7, second_child->first_line, "OR OP only for int");
+            return NULL;
+        }
+        return t1;
+    }
+    if (strcmp(first_child->name, "NOT") == 0)
+    {
+        type_ptr t = deal_Exp(node->children[1]);
+        if (t == NULL || t->kind != type_sys_INT)
+        {
+            semantic_error_print(7, second_child->first_line, "NOT OP only for int");
+            return NULL;
+        }
+        return t;
+    }
+    // Exp: Exp PLUS Exp | Exp MINUS Exp | Exp STAR Exp | Exp DIV Exp | Exp RELOP Exp |  MINUS Exp %prec NEG
+    if (strcmp(second_child->name, "PLUS") == 0)
+    {
+        type_ptr t1 = deal_Exp(node->children[0]);
+        type_ptr t2 = deal_Exp(node->children[2]);
+        if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
+        {
+            semantic_error_print(7, second_child->first_line, "PLUS mismatch types");
+            return NULL;
+        }
+        return t1;
+    }
+    if (strcmp(second_child->name, "MINUS") == 0)
+    {
+        type_ptr t1 = deal_Exp(node->children[0]);
+        type_ptr t2 = deal_Exp(node->children[2]);
+        if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
+        {
+            semantic_error_print(7, second_child->first_line, "MINUS mismatch types");
+            return NULL;
+        }
+        return t1;
+    }
+    if (strcmp(second_child->name, "STAR") == 0)
+    {
+        type_ptr t1 = deal_Exp(node->children[0]);
+        type_ptr t2 = deal_Exp(node->children[2]);
+        if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
+        {
+            semantic_error_print(7, second_child->first_line, "STAR mismatch types");
+            return NULL;
+        }
+        return t1;
+    }
+    if (strcmp(second_child->name, "DIV") == 0)
+    {
+        type_ptr t1 = deal_Exp(node->children[0]);
+        type_ptr t2 = deal_Exp(node->children[2]);
+        if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
+        {
+            semantic_error_print(7, second_child->first_line, "DIV mismatch types");
+            return NULL;
+        }
+        return t1;
+    }
+    if (strcmp(second_child->name, "RELOP") == 0)
+    {
+        type_ptr t1 = deal_Exp(node->children[0]);
+        type_ptr t2 = deal_Exp(node->children[2]);
+        if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
+        {
+            semantic_error_print(7, second_child->first_line, "RELOP mismatch types");
+            return NULL;
+        }
+        return type_ptr_int;
+    }
+    if (strcmp(first_child->name, "MINUS") == 0)
+    {
+        return deal_Exp(second_child);
+    }
+    // Exp: LP Exp RP
+    if (strcmp(first_child->name, "LP") == 0)
+    {
+        return deal_Exp(second_child);
+    }
     // Exp: ID | INT | FLOAT
-
+    if (strcmp(first_child->name, "ID") == 0 && second_child == NULL)
+    {
+        symbol_t *s = look_up_symbol(first_child->tev.id);
+        if (s == NULL)
+        {
+            semantic_error_print(1, first_child->first_line, "var undefined");
+            return NULL;
+        }
+        return s->type;
+    }
+    if (strcmp(first_child->name, "INT") == 0)
+    {
+        return type_ptr_int;
+    }
+    if (strcmp(first_child->name, "FLOAT") == 0)
+    {
+        return type_ptr_float;
+    }
     // Exp: ID LP Args RP | ID LP RP
-
+    if (strcmp(second_child->name, "LP") == 0)
+    {
+        symbol_t *s = look_up_symbol(first_child->tev.id);
+        if (s == NULL)
+        {
+            semantic_error_print(2, first_child->first_line, "call undefined func");
+            return NULL;
+        }
+        if (s->type->kind != type_sys_FUNCTION)
+        {
+            semantic_error_print(11, first_child->first_line, "var can't be called");
+            return NULL;
+        }
+        if (strcmp(node->children[2]->name, "Args") == 0)
+        {
+            // Args: Exp COMMA Args | Exp
+            node_t *remain_args = node->children[2];
+            for (int i = 0; i < s->type->u.function.para_num; ++i)
+            {
+                if (remain_args == NULL)
+                {
+                    semantic_error_print(9, first_child->first_line, "func para mismatch");
+                    return NULL;
+                }
+                node_t *curr_exp = remain_args->children[0];
+                type_ptr curr_exp_type = deal_Exp(curr_exp);
+                if (!same_type(curr_exp_type, s->type->u.function.para_types[i]))
+                {
+                    semantic_error_print(9, first_child->first_line, "func para mismatch");
+                    return NULL;
+                }
+                remain_args = remain_args->children[2];
+            }
+            if (remain_args)
+            {
+                semantic_error_print(9, first_child->first_line, "func para mismatch");
+                return NULL;
+            }
+        }
+        return s->type->u.function.return_type;
+    }
     // Exp: Exp DOT ID
-
+    if (strcmp(second_child->name, "DOT") == 0)
+    {
+        type_ptr t = deal_Exp(first_child);
+        if (t == NULL || t->kind != type_sys_STRUCTURE)
+        {
+            semantic_error_print(13, first_child->first_line, "only strcut can use DOT");
+            return NULL;
+        }
+        struct_field_ptr next_field = t->u.structure.struct_field;
+        while (next_field)
+        {
+            if (strcmp(next_field->name, node->children[2]->tev.id) == 0)
+                return next_field->type;
+            next_field = next_field->next_field;
+        }
+        semantic_error_print(14, node->children[2]->first_line, "invalid struct field name");
+        return NULL;
+    }
     // Exp: Exp LB Exp RB
+    if (strcmp(second_child->name, "LB") == 0)
+    {
+        type_ptr t1 = deal_Exp(first_child);
+        if (t1 == NULL || t1->kind != type_sys_ARRAY)
+        {
+            semantic_error_print(10, first_child->first_line, "only array can use []");
+            return NULL;
+        }
+        type_ptr t2 = deal_Exp(node->children[2]);
+        if (t2 == NULL || t2->kind != type_sys_INT)
+        {
+            semantic_error_print(12, first_child->first_line, "only array [int]");
+            return NULL;
+        }
+        return t1->u.array.elem_type;
+    }
 }
 
 void semantic_dfs(node_t *node)
