@@ -450,6 +450,25 @@ type_ptr deal_Exp(node_t *node)
 {
     node_t *first_child = node->children[0];
     node_t *second_child = node->children[1];
+    // Exp: ID | INT | FLOAT
+    if (strcmp(first_child->name, "ID") == 0 && second_child == NULL)
+    {
+        symbol_t *s = look_up_symbol(first_child->tev.id);
+        if (s == NULL)
+        {
+            semantic_error_print(1, first_child->first_line, "var undefined");
+            return NULL;
+        }
+        return s->type;
+    }
+    if (strcmp(first_child->name, "INT") == 0)
+    {
+        return type_ptr_int;
+    }
+    if (strcmp(first_child->name, "FLOAT") == 0)
+    {
+        return type_ptr_float;
+    }
     // Exp: Exp ASSIGNOP Exp
     if (strcmp(second_child->name, "ASSIGNOP") == 0)
     {
@@ -565,25 +584,7 @@ type_ptr deal_Exp(node_t *node)
     {
         return deal_Exp(second_child);
     }
-    // Exp: ID | INT | FLOAT
-    if (strcmp(first_child->name, "ID") == 0 && second_child == NULL)
-    {
-        symbol_t *s = look_up_symbol(first_child->tev.id);
-        if (s == NULL)
-        {
-            semantic_error_print(1, first_child->first_line, "var undefined");
-            return NULL;
-        }
-        return s->type;
-    }
-    if (strcmp(first_child->name, "INT") == 0)
-    {
-        return type_ptr_int;
-    }
-    if (strcmp(first_child->name, "FLOAT") == 0)
-    {
-        return type_ptr_float;
-    }
+
     // Exp: ID LP Args RP | ID LP RP
     if (strcmp(second_child->name, "LP") == 0)
     {
