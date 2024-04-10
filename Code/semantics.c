@@ -56,16 +56,61 @@ type_ptr deal_StructSpecifier(node_t *node)
         char *tag_name = (node->children[1] == NULL) ? next_anony_struct_name() : node->children[1]->children[0]->tev.id;
         if (look_up_symbol(tag_name))
         {
-            semantic_error_print(16, node->first_line, "redefined struct");
+            semantic_error_print(16, node->first_line, "struct name redefined");
             return NULL;
         }
         symbol_t *new_s = malloc(sizeof(symbol_t));
         // symbol name
         new_s->name = strdup(tag_name);
         // new type
-
+        type_ptr new_type = malloc(sizeof(struct type_s));
+        // kind
+        new_type->kind = type_sys_STRUCTURE;
+        // field
+        struct_field_ptr first_field = NULL, prev_field = NULL, curr_field = NULL;
+        if (node->children[3] != NULL)
+        {
+            // DefList -> Def -> DecList -> Dec -> VarDec
+            // DefList
+            DefList_info_t def_list_info = deal_DefList(node->children[3], 0);
+            for (int def_idx = 0; def_idx < def_list_info.def_info_num; ++def_idx)
+            {
+                // Def
+                Def_info_t *def_info = &def_list_info.def_infos[def_idx];
+                // DecList
+                DecList_info_t *dec_list_info = &def_info->dec_list_info;
+                for (int dec_idx = 0; dec_idx < dec_list_info->dec_info_num; ++dec_idx)
+                {
+                    // Dec
+                    Dec_info_t *dec_info = &dec_list_info->dec_infos[dec_idx];
+                    // VarDec
+                    VarDec_info_t *var_dec_info = &dec_info->var_dec_info;
+                    if (look_up_symbol(var_dec_info->id))
+                    {
+                        semantic_error_print(15, var_dec_info->VarDec_node->first_line, "struct field name redefined");
+                        return NULL;
+                    }
+                    else if (dec_info->assign_Exp)
+                    {
+                        semantic_error_print(15, var_dec_info->VarDec_node->first_line, "struct field shouldn't have init val");
+                        return NULL;
+                    }
+                    curr_field = malloc(sizeof(struct struct_field_s));
+                    curr_field->name = var_dec_info->id;
+                    curr_field->type = var_dec_info->type;
+                    curr_field->next_field = NULL;
+                    if (def_idx == 0 && dec_idx == 0)
+                        first_field = curr_field;
+                    if (prev_field)
+                        prev_field->next_field = curr_field;
+                    prev_field = curr_field;
+                }
+            }
+            // TODO: free heap space malloced in DefList_info_t
+        }
+        new_type->u.struct_field = first_field;
         // symbol type
-
+        new_s->type = new_type;
         return new_s->type;
     }
 }
