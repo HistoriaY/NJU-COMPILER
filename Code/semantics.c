@@ -99,6 +99,11 @@ type_ptr deal_StructSpecifier(node_t *node)
                     curr_field->name = var_dec_info->id;
                     curr_field->type = var_dec_info->type;
                     curr_field->next_field = NULL;
+                    // register new field symbol
+                    symbol_t *new_fs = malloc(sizeof(symbol_t));
+                    new_fs->name = curr_field->name;
+                    new_fs->type = curr_field->type;
+                    insert_symbol(new_fs);
                     if (def_idx == 0 && dec_idx == 0)
                         first_field = curr_field;
                     if (prev_field)
@@ -111,6 +116,8 @@ type_ptr deal_StructSpecifier(node_t *node)
         new_type->u.struct_field = first_field;
         // symbol type
         new_s->type = new_type;
+        // register new struct symbol
+        insert_symbol(new_s);
         return new_s->type;
     }
 }
@@ -136,11 +143,16 @@ type_ptr deal_Specifier(node_t *node)
 
 void deal_ExtDef(node_t *node)
 {
-    /*
-    ExtDef: Specifier ExtDecList SEMI
-    | Specifier SEMI
-    | Specifier FunDec CompSt
-    */
+    type_ptr base_type = deal_Specifier(node->children[0]);
+    // ExtDef: Specifier ExtDecList SEMI
+    if (strcmp(node->children[1]->name, "ExtDecList") == 0)
+    {
+    }
+    // ExtDef: Specifier FunDec CompSt
+    else if (strcmp(node->children[1]->name, "FunDec") == 0)
+    {
+    }
+    // ExtDef: Specifier SEMI
 }
 
 VarDec_info_t deal_VarDec(node_t *node, type_ptr base_type)
@@ -260,7 +272,28 @@ void semantic_dfs(node_t *node)
     }
     if (strcmp(node->name, "Def") == 0)
     {
-        deal_Def(node);
+        // Def -> DecList -> Dec -> VarDec
+        // Def
+        Def_info_t def_info = deal_Def(node);
+        // DecList
+        DecList_info_t *dec_list_info = &def_info.dec_list_info;
+        for (int dec_idx = 0; dec_idx < dec_list_info->dec_info_num; ++dec_idx)
+        {
+            // Dec
+            Dec_info_t *dec_info = &dec_list_info->dec_infos[dec_idx];
+            // VarDec
+            VarDec_info_t *var_dec_info = &dec_info->var_dec_info;
+            if (look_up_symbol(var_dec_info->id))
+            {
+                semantic_error_print(3, var_dec_info->VarDec_node->first_line, "var name redefined");
+                return;
+            }
+            // register new local symbol
+            symbol_t *new_s = malloc(sizeof(symbol_t));
+            new_s->name = var_dec_info->id;
+            new_s->type = var_dec_info->type;
+            insert_symbol(new_s);
+        }
         return;
     }
     if (strcmp(node->name, "Exp") == 0)
