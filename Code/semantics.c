@@ -161,7 +161,7 @@ void deal_ExtDecList(node_t *node, type_ptr base_type)
         deal_ExtDecList(node->children[2], base_type);
 }
 
-VarList_info_t deal_VarList(node_t *node, type_ptr return_type, int prev_para_num)
+VarList_info_t deal_VarList(node_t *node, int prev_para_num)
 {
     // VarList: ParamDec COMMA VarList | ParamDec
     // ParamDec: Specifier VarDec
@@ -188,7 +188,7 @@ VarList_info_t deal_VarList(node_t *node, type_ptr return_type, int prev_para_nu
     }
     else
     {
-        VarList_info_t tmp = deal_VarList(node->children[2], return_type, prev_para_num + 1);
+        VarList_info_t tmp = deal_VarList(node->children[2], prev_para_num + 1);
         tmp.VarList_node = node;
         type_ptr base_type = deal_Specifier(node->children[0]->children[0]);
         VarDec_info_t vdi = deal_VarDec(node->children[0]->children[1], base_type);
@@ -229,7 +229,7 @@ void deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
     // FunDec: ID LP VarList RP
     if (node->children[3] != NULL)
     {
-        VarList_info_t vli = deal_VarList(node->children[2], return_type, 0);
+        VarList_info_t vli = deal_VarList(node->children[2], 0);
         type_ptr new_type = malloc(sizeof(struct type_s));
         new_type->kind = type_sys_FUNCTION;
         new_type->u.function.return_type = return_type;
@@ -255,6 +255,94 @@ void deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
     }
 }
 
+void deal_Stmt(node_t *node, type_ptr return_type)
+{
+    node_t *first_child = node->children[0];
+    // Stmt: Exp SEMI
+    if (strcmp(first_child->name, "Exp") == 0)
+    {
+        deal_Exp(first_child);
+        return;
+    }
+    // Stmt: CompSt
+    if (strcmp(first_child->name, "CompSt") == 0)
+    {
+        deal_CompSt(first_child, return_type);
+        return;
+    }
+    // Stmt: RETURN Exp SEMI
+    if (strcmp(first_child->name, "RETURN") == 0)
+    {
+        type_ptr t = deal_Exp(node->children[1]);
+        if (!same_type(t, return_type))
+            semantic_error_print(8, first_child->first_line, "func return type mismatch");
+        return;
+    }
+    // Stmt: WHILE LP Exp RP Stmt
+    if (strcmp(first_child->name, "WHILE") == 0)
+    {
+        deal_Exp(node->children[2]);
+        deal_Stmt(node->children[4], return_type);
+        return;
+    }
+    // Stmt: IF LP Exp RP Stmt %prec LOWER_THAN_ELSE
+    // Stmt: IF LP Exp RP Stmt ELSE Stmt
+    if (strcmp(first_child->name, "IF") == 0)
+    {
+        deal_Exp(node->children[2]);
+        deal_Stmt(node->children[4], return_type);
+        if (node->children[6] != NULL)
+            deal_Stmt(node->children[6], return_type);
+        return;
+    }
+}
+
+void deal_StmtList(node_t *node, type_ptr return_type)
+{
+    // StmtList: Stmt StmtList | empty
+    deal_Stmt(node->children[0], return_type);
+    if (node->children[1] != NULL)
+        deal_StmtList(node->children[1], return_type);
+}
+
+void deal_CompSt(node_t *node, type_ptr return_type)
+{
+    // CompSt: LC DefList StmtList RC
+    if (node->children[1] != NULL)
+    {
+        // DefList -> Def -> DecList -> Dec -> VarDec
+        // DefList
+        DefList_info_t def_list_info = deal_DefList(node->children[1], 0);
+        for (int def_idx = 0; def_idx < def_list_info.def_info_num; ++def_idx)
+        {
+            // Def
+            Def_info_t *def_info = &def_list_info.def_infos[def_idx];
+            // DecList
+            DecList_info_t *dec_list_info = &def_info->dec_list_info;
+            for (int dec_idx = 0; dec_idx < dec_list_info->dec_info_num; ++dec_idx)
+            {
+                // Dec
+                Dec_info_t *dec_info = &dec_list_info->dec_infos[dec_idx];
+                // VarDec
+                VarDec_info_t *var_dec_info = &dec_info->var_dec_info;
+                if (look_up_symbol(var_dec_info->id))
+                    semantic_error_print(3, var_dec_info->VarDec_node->first_line, "var name redefined");
+                else
+                {
+                    // register new local symbol
+                    symbol_t *new_s = malloc(sizeof(symbol_t));
+                    new_s->name = var_dec_info->id;
+                    new_s->type = var_dec_info->type;
+                    insert_symbol(new_s);
+                }
+            }
+        }
+        // TODO: free heap space malloced in DefList_info_t
+    }
+    if (node->children[2] != NULL)
+        deal_StmtList(node->children[2], return_type);
+}
+
 void deal_ExtDef(node_t *node)
 {
     // ExtDef: Specifier SEMI
@@ -270,7 +358,7 @@ void deal_ExtDef(node_t *node)
         int is_definition = (node->children[2] == NULL) ? 0 : 1;
         deal_FunDec(node->children[1], base_type, is_definition);
         if (node->children[2])
-            semantic_dfs(node->children[2]);
+            deal_CompSt(node->children[2], base_type);
     }
 }
 
@@ -576,51 +664,20 @@ type_ptr deal_Exp(node_t *node)
     }
 }
 
-void semantic_dfs(node_t *node)
+void deal_all_ExtDef(node_t *node)
 {
     if (strcmp(node->name, "ExtDef") == 0)
     {
         deal_ExtDef(node);
         return;
     }
-    if (strcmp(node->name, "Def") == 0)
-    {
-        // Def -> DecList -> Dec -> VarDec
-        // Def
-        Def_info_t def_info = deal_Def(node);
-        // DecList
-        DecList_info_t *dec_list_info = &def_info.dec_list_info;
-        for (int dec_idx = 0; dec_idx < dec_list_info->dec_info_num; ++dec_idx)
-        {
-            // Dec
-            Dec_info_t *dec_info = &dec_list_info->dec_infos[dec_idx];
-            // VarDec
-            VarDec_info_t *var_dec_info = &dec_info->var_dec_info;
-            if (look_up_symbol(var_dec_info->id))
-            {
-                semantic_error_print(3, var_dec_info->VarDec_node->first_line, "var name redefined");
-                return;
-            }
-            // register new local symbol
-            symbol_t *new_s = malloc(sizeof(symbol_t));
-            new_s->name = var_dec_info->id;
-            new_s->type = var_dec_info->type;
-            insert_symbol(new_s);
-        }
-        return;
-    }
-    if (strcmp(node->name, "Exp") == 0)
-    {
-        deal_Exp(node);
-        return;
-    }
     for (int i = 0; i < 7; ++i)
         if (node->children[i] != NULL)
-            semantic_dfs(node->children[i]);
+            deal_all_ExtDef(node->children[i]);
 }
 
 void semantic_analysis(node_t *root)
 {
     init_basic_type_ptr();
-    semantic_dfs(root);
+    deal_all_ExtDef(root);
 }
