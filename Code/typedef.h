@@ -51,7 +51,8 @@ struct type_s
         {
             type_ptr return_type;
             int para_num;
-            type_ptr *para_type;
+            type_ptr *para_types;
+            int is_defined;
         } function;
         // array type
         struct
@@ -60,7 +61,11 @@ struct type_s
             type_ptr elem_type;
         } array;
         // structure type
-        struct_field_ptr struct_field;
+        struct
+        {
+            char *struct_name;
+            struct_field_ptr struct_field;
+        } structure;
     } u;
 };
 

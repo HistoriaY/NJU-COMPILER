@@ -41,6 +41,22 @@ typedef struct DefList_info_s
     node_t *DefList_node;
 } DefList_info_t;
 
+// typedef struct ExtDecList_info_s
+// {
+//     // ExtDecList: VarDec | VarDec COMMA ExtDecList
+//     int var_dec_info_num;
+//     VarDec_info_t *var_dec_infos;
+//     node_t *ExtDecList_node;
+// } ExtDecList_info_t;
+
+typedef struct VarList_info_s
+{
+    // VarList: ParamDec COMMA VarList | ParamDec
+    int para_num;
+    type_ptr *para_types;
+    node_t *VarList_node;
+} VarList_info_t;
+
 type_ptr deal_StructSpecifier(node_t *node);
 
 type_ptr deal_Specifier(node_t *node);
@@ -52,6 +68,8 @@ VarDec_info_t deal_VarDec(node_t *node, type_ptr base_type);
 Dec_info_t deal_Dec(node_t *node, type_ptr base_type);
 
 DecList_info_t deal_DecList(node_t *node, type_ptr base_type, int prev_dec_num);
+
+void deal_ExtDecList(node_t *node, type_ptr base_type);
 
 Def_info_t deal_Def(node_t *node);
 

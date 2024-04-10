@@ -113,7 +113,8 @@ type_ptr deal_StructSpecifier(node_t *node)
             }
             // TODO: free heap space malloced in DefList_info_t
         }
-        new_type->u.struct_field = first_field;
+        new_type->u.structure.struct_name = new_s->name;
+        new_type->u.structure.struct_field = first_field;
         // symbol type
         new_s->type = new_type;
         // register new struct symbol
@@ -141,18 +142,136 @@ type_ptr deal_Specifier(node_t *node)
     return NULL;
 }
 
+void deal_ExtDecList(node_t *node, type_ptr base_type)
+{
+    // ExtDecList: VarDec | VarDec COMMA ExtDecList
+    VarDec_info_t var_dec_info = deal_VarDec(node->children[0], base_type);
+    if (look_up_symbol(var_dec_info.id))
+    {
+        semantic_error_print(3, var_dec_info.VarDec_node->first_line, "var name redefined");
+        return;
+    }
+    // register new global symbol
+    symbol_t *new_s = malloc(sizeof(symbol_t));
+    new_s->name = var_dec_info.id;
+    new_s->type = var_dec_info.type;
+    insert_symbol(new_s);
+    // recursive deal
+    if (node->children[2] != NULL)
+        deal_ExtDecList(node->children[2], base_type);
+}
+
+VarList_info_t deal_VarList(node_t *node, type_ptr return_type, int prev_para_num)
+{
+    // VarList: ParamDec COMMA VarList | ParamDec
+    // ParamDec: Specifier VarDec
+    if (node->children[2] == NULL)
+    {
+        VarList_info_t tmp;
+        tmp.para_num = prev_para_num + 1;
+        tmp.para_types = malloc(sizeof(type_ptr) * tmp.para_num);
+        tmp.VarList_node = node;
+        type_ptr base_type = deal_Specifier(node->children[0]->children[0]);
+        VarDec_info_t vdi = deal_VarDec(node->children[0]->children[1], base_type);
+        if (look_up_symbol(vdi.id))
+        {
+            semantic_error_print(3, vdi.VarDec_node->first_line, "func para name redefined");
+            tmp.para_types[prev_para_num] = NULL;
+            return tmp;
+        }
+        symbol_t *new_s = malloc(sizeof(symbol_t));
+        new_s->name = vdi.id;
+        new_s->type = vdi.type;
+        insert_symbol(new_s);
+        tmp.para_types[prev_para_num] = new_s->type;
+        return tmp;
+    }
+    else
+    {
+        VarList_info_t tmp = deal_VarList(node->children[2], return_type, prev_para_num + 1);
+        tmp.VarList_node = node;
+        type_ptr base_type = deal_Specifier(node->children[0]->children[0]);
+        VarDec_info_t vdi = deal_VarDec(node->children[0]->children[1], base_type);
+        if (look_up_symbol(vdi.id))
+        {
+            semantic_error_print(3, vdi.VarDec_node->first_line, "func para name redefined");
+            tmp.para_types[prev_para_num] = NULL;
+            return tmp;
+        }
+        symbol_t *new_s = malloc(sizeof(symbol_t));
+        new_s->name = vdi.id;
+        new_s->type = vdi.type;
+        insert_symbol(new_s);
+        tmp.para_types[prev_para_num] = new_s->type;
+        return tmp;
+    }
+}
+
+void deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
+{
+    char *func_name = node->children[0]->tev.id;
+    symbol_t *s = look_up_symbol(func_name);
+    if (s && s->type->kind == type_sys_FUNCTION)
+    {
+        semantic_error_print(4, node->children[0]->first_line, "func name redefined");
+        return;
+    }
+    // if (!is_definition)
+    // {
+    //     // check declare consistency
+    // }
+    // else
+    // {
+    //     // check re-definition
+
+    //     // check declare-definition consistency
+    // }
+    // FunDec: ID LP VarList RP
+    if (node->children[3] != NULL)
+    {
+        VarList_info_t vli = deal_VarList(node->children[2], return_type, 0);
+        type_ptr new_type = malloc(sizeof(struct type_s));
+        new_type->kind = type_sys_FUNCTION;
+        new_type->u.function.return_type = return_type;
+        new_type->u.function.para_num = vli.para_num;
+        new_type->u.function.para_types = vli.para_types;
+        symbol_t *new_s = malloc(sizeof(symbol_t));
+        new_s->name = func_name;
+        new_s->type = new_type;
+        insert_symbol(new_s);
+    }
+    // FunDec: ID LP RP
+    else
+    {
+        type_ptr new_type = malloc(sizeof(struct type_s));
+        new_type->kind = type_sys_FUNCTION;
+        new_type->u.function.return_type = return_type;
+        new_type->u.function.para_num = 0;
+        new_type->u.function.para_types = NULL;
+        symbol_t *new_s = malloc(sizeof(symbol_t));
+        new_s->name = func_name;
+        new_s->type = new_type;
+        insert_symbol(new_s);
+    }
+}
+
 void deal_ExtDef(node_t *node)
 {
+    // ExtDef: Specifier SEMI
     type_ptr base_type = deal_Specifier(node->children[0]);
     // ExtDef: Specifier ExtDecList SEMI
     if (strcmp(node->children[1]->name, "ExtDecList") == 0)
     {
+        deal_ExtDecList(node->children[1], base_type);
     }
-    // ExtDef: Specifier FunDec CompSt
+    // ExtDef: Specifier FunDec CompSt | Specifier FunDec
     else if (strcmp(node->children[1]->name, "FunDec") == 0)
     {
+        int is_definition = (node->children[2] == NULL) ? 0 : 1;
+        deal_FunDec(node->children[1], base_type, is_definition);
+        if (node->children[2])
+            semantic_dfs(node->children[2]);
     }
-    // ExtDef: Specifier SEMI
 }
 
 VarDec_info_t deal_VarDec(node_t *node, type_ptr base_type)
@@ -241,26 +360,19 @@ DefList_info_t deal_DefList(node_t *node, int prev_def_num)
 
 void deal_Exp(node_t *node)
 {
-    /*
-    Exp: Exp ASSIGNOP Exp
-    | Exp AND Exp
-    | Exp OR Exp
-    | Exp RELOP Exp
-    | Exp PLUS Exp
-    | Exp MINUS Exp
-    | Exp STAR Exp
-    | Exp DIV Exp
-    | LP Exp RP
-    | MINUS Exp %prec NEG
-    | NOT Exp
-    | ID LP Args RP
-    | ID LP RP
-    | Exp LB Exp RB
-    | Exp DOT ID
-    | ID
-    | INT
-    | FLOAT
-    */
+    // Exp: Exp ASSIGNOP Exp
+
+    // Exp: Exp AND Exp | Exp OR Exp| NOT Exp
+
+    // Exp: Exp PLUS Exp | Exp MINUS Exp | Exp STAR Exp | Exp DIV Exp| Exp RELOP Exp| LP Exp RP| MINUS Exp %prec NEG
+
+    // Exp: ID | INT | FLOAT
+
+    // Exp: ID LP Args RP | ID LP RP
+
+    // Exp: Exp DOT ID
+
+    // Exp: Exp LB Exp RB
 }
 
 void semantic_dfs(node_t *node)
