@@ -15,6 +15,7 @@
         temp->name = strdup(name);
         temp->first_line = first_line;
         temp->is_terminal = 1;
+        temp->is_lval = 0;
         temp->tev = tev;
         return temp;
     }

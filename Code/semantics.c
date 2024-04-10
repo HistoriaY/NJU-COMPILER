@@ -372,6 +372,11 @@ type_ptr deal_Exp(node_t *node)
             semantic_error_print(5, second_child->first_line, "ASSIGNOP mismatch types");
             return NULL;
         }
+        if (!first_child->is_lval)
+        {
+            semantic_error_print(6, second_child->first_line, "only lval ASSIGNOP val");
+            return NULL;
+        }
         return t1;
     }
     // Exp: Exp AND Exp | Exp OR Exp | NOT Exp

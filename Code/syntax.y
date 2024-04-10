@@ -8,6 +8,7 @@
         temp->name = strdup(name);
         temp->first_line = first_line;
         temp->is_terminal = 0;
+        temp->is_lval = 0;
         for(int i = 0; i < child_num; ++i){
             temp->children[i] = children[i];
         }
@@ -59,6 +60,7 @@ ExtDef: Specifier ExtDecList SEMI {node_t* children[3] = {$1,$2,$3}; $$ = create
 }
 | Specifier SEMI {node_t* children[2] = {$1,$2}; $$ = create_tree_node("ExtDef",@1.first_line,children,2);}
 | Specifier FunDec CompSt {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("ExtDef",@1.first_line,children,3);}
+| Specifier FunDec SEMI {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("ExtDef",@1.first_line,children,3);}
 | error {}
 ;
 ExtDecList: VarDec {node_t* children[1] = {$1}; $$ = create_tree_node("ExtDecList",@1.first_line,children,1);}
@@ -144,9 +146,9 @@ Exp: Exp ASSIGNOP Exp {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("
 | NOT Exp {node_t* children[2] = {$1,$2}; $$ = create_tree_node("Exp",@1.first_line,children,2);}
 | ID LP Args RP {node_t* children[4] = {$1,$2,$3,$4}; $$ = create_tree_node("Exp",@1.first_line,children,4);}
 | ID LP RP {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("Exp",@1.first_line,children,3);}
-| Exp LB Exp RB {node_t* children[4] = {$1,$2,$3,$4}; $$ = create_tree_node("Exp",@1.first_line,children,4);}
-| Exp DOT ID {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("Exp",@1.first_line,children,3);}
-| ID {node_t* children[1] = {$1}; $$ = create_tree_node("Exp",@1.first_line,children,1);}
+| Exp LB Exp RB {node_t* children[4] = {$1,$2,$3,$4}; $$ = create_tree_node("Exp",@1.first_line,children,4); $$->is_lval = 1;}
+| Exp DOT ID {node_t* children[3] = {$1,$2,$3}; $$ = create_tree_node("Exp",@1.first_line,children,3); $$->is_lval = 1;}
+| ID {node_t* children[1] = {$1}; $$ = create_tree_node("Exp",@1.first_line,children,1); $$->is_lval = 1;}
 | INT {node_t* children[1] = {$1}; $$ = create_tree_node("Exp",@1.first_line,children,1);}
 | FLOAT {node_t* children[1] = {$1}; $$ = create_tree_node("Exp",@1.first_line,children,1);}
 | error {}

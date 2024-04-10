@@ -24,6 +24,7 @@ typedef struct node_s
     char *name;
     int first_line;
     int is_terminal;
+    int is_lval;
     token_extra_value_t tev;
 } node_t;
 extern node_t *root;
