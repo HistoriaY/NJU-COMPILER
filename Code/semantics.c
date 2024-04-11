@@ -16,10 +16,15 @@ void init_basic_type_ptr()
     type_ptr_float->kind = type_sys_FLOAT;
 }
 
+int errored[1024];
 // semantic error print
 void semantic_error_print(int error_type, int line, char *msg)
 {
-    printf("Error type %d at Line %d: %s.\n", error_type, line, msg);
+    if (!errored[line])
+    {
+        printf("Error type %d at Line %d: %s.\n", error_type, line, msg);
+        errored[line] = 1;
+    }
 }
 
 // anonymous struct name
@@ -61,7 +66,10 @@ type_ptr deal_StructSpecifier(node_t *node)
         }
         symbol_t *new_s = malloc(sizeof(symbol_t));
         // symbol name
-        new_s->name = strdup(tag_name);
+        // there is once a bug: strdup sb
+        // /new_s->name = strdup(tag_name);
+        new_s->name = malloc(sizeof(char) * (strlen(tag_name) + 1));
+        strcpy(new_s->name, tag_name);
         // new type
         type_ptr new_type = malloc(sizeof(struct type_s));
         // kind
@@ -88,12 +96,11 @@ type_ptr deal_StructSpecifier(node_t *node)
                     if (look_up_symbol(var_dec_info->id))
                     {
                         semantic_error_print(15, var_dec_info->VarDec_node->first_line, "struct field name redefined");
-                        return NULL;
+                        continue;
                     }
                     else if (dec_info->assign_Exp)
                     {
                         semantic_error_print(15, var_dec_info->VarDec_node->first_line, "struct field shouldn't have init val");
-                        return NULL;
                     }
                     curr_field = malloc(sizeof(struct struct_field_s));
                     curr_field->name = var_dec_info->id;
@@ -104,7 +111,7 @@ type_ptr deal_StructSpecifier(node_t *node)
                     new_fs->name = curr_field->name;
                     new_fs->type = curr_field->type;
                     insert_symbol(new_fs);
-                    if (def_idx == 0 && dec_idx == 0)
+                    if (first_field == NULL)
                         first_field = curr_field;
                     if (prev_field)
                         prev_field->next_field = curr_field;
@@ -207,14 +214,14 @@ VarList_info_t deal_VarList(node_t *node, int prev_para_num)
     }
 }
 
-void deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
+int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
 {
     char *func_name = node->children[0]->tev.id;
     symbol_t *s = look_up_symbol(func_name);
     if (s && s->type->kind == type_sys_FUNCTION)
     {
         semantic_error_print(4, node->children[0]->first_line, "func name redefined");
-        return;
+        return 1;
     }
     // if (!is_definition)
     // {
@@ -253,6 +260,7 @@ void deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
         new_s->type = new_type;
         insert_symbol(new_s);
     }
+    return 0;
 }
 
 void deal_Stmt(node_t *node, type_ptr return_type)
@@ -325,6 +333,8 @@ void deal_CompSt(node_t *node, type_ptr return_type)
                 Dec_info_t *dec_info = &dec_list_info->dec_infos[dec_idx];
                 // VarDec
                 VarDec_info_t *var_dec_info = &dec_info->var_dec_info;
+                if (dec_info->assign_Exp && !same_type(var_dec_info->type, deal_Exp(dec_info->assign_Exp)))
+                    semantic_error_print(5, var_dec_info->VarDec_node->first_line, "ASSIGNOP mismatch types");
                 if (look_up_symbol(var_dec_info->id))
                     semantic_error_print(3, var_dec_info->VarDec_node->first_line, "var name redefined");
                 else
@@ -356,8 +366,8 @@ void deal_ExtDef(node_t *node)
     else if (strcmp(node->children[1]->name, "FunDec") == 0)
     {
         int is_definition = (node->children[2] == NULL) ? 0 : 1;
-        deal_FunDec(node->children[1], base_type, is_definition);
-        if (node->children[2])
+        int status = deal_FunDec(node->children[1], base_type, is_definition);
+        if (status == 0 && node->children[2])
             deal_CompSt(node->children[2], base_type);
     }
 }
@@ -584,7 +594,6 @@ type_ptr deal_Exp(node_t *node)
     {
         return deal_Exp(second_child);
     }
-
     // Exp: ID LP Args RP | ID LP RP
     if (strcmp(second_child->name, "LP") == 0)
     {

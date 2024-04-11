@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "typedef.h"
+#include "semantics.h"
+
 node_t *root;
 symbol_table_t symbol_table;
 
@@ -62,7 +64,10 @@ int main(int argc, char **argv)
     yyrestart(f);
     yyparse();
     if (!error)
-        print_node_info(root, 0);
+    {
+        // print_node_info(root, 0);
+        semantic_analysis(root);
+    }
     fclose(f);
     return 0;
 }
