@@ -110,6 +110,7 @@ type_ptr deal_StructSpecifier(node_t *node)
                     symbol_t *new_fs = malloc(sizeof(symbol_t));
                     new_fs->name = curr_field->name;
                     new_fs->type = curr_field->type;
+                    new_fs->scope = local_scope;
                     insert_symbol(new_fs);
                     if (first_field == NULL)
                         first_field = curr_field;
@@ -124,6 +125,8 @@ type_ptr deal_StructSpecifier(node_t *node)
         new_type->u.structure.struct_field = first_field;
         // symbol type
         new_s->type = new_type;
+        // symbol scope
+        new_s->scope = global_scope;
         // register new struct symbol
         insert_symbol(new_s);
         return new_s->type;
@@ -162,6 +165,7 @@ void deal_ExtDecList(node_t *node, type_ptr base_type)
     symbol_t *new_s = malloc(sizeof(symbol_t));
     new_s->name = var_dec_info.id;
     new_s->type = var_dec_info.type;
+    new_s->scope = global_scope;
     insert_symbol(new_s);
     // recursive deal
     if (node->children[2] != NULL)
@@ -175,22 +179,12 @@ VarList_info_t deal_VarList(node_t *node, int prev_para_num)
     if (node->children[2] == NULL)
     {
         VarList_info_t tmp;
-        tmp.para_num = prev_para_num + 1;
-        tmp.para_types = malloc(sizeof(type_ptr) * tmp.para_num);
+        tmp.var_dec_num = prev_para_num + 1;
+        tmp.var_dec_infos = malloc(sizeof(VarDec_info_t) * tmp.var_dec_num);
         tmp.VarList_node = node;
         type_ptr base_type = deal_Specifier(node->children[0]->children[0]);
         VarDec_info_t vdi = deal_VarDec(node->children[0]->children[1], base_type);
-        if (look_up_symbol(vdi.id))
-        {
-            semantic_error_print(3, vdi.VarDec_node->first_line, "func para name redefined");
-            tmp.para_types[prev_para_num] = NULL;
-            return tmp;
-        }
-        symbol_t *new_s = malloc(sizeof(symbol_t));
-        new_s->name = vdi.id;
-        new_s->type = vdi.type;
-        insert_symbol(new_s);
-        tmp.para_types[prev_para_num] = new_s->type;
+        tmp.var_dec_infos[prev_para_num] = vdi;
         return tmp;
     }
     else
@@ -199,66 +193,112 @@ VarList_info_t deal_VarList(node_t *node, int prev_para_num)
         tmp.VarList_node = node;
         type_ptr base_type = deal_Specifier(node->children[0]->children[0]);
         VarDec_info_t vdi = deal_VarDec(node->children[0]->children[1], base_type);
-        if (look_up_symbol(vdi.id))
-        {
-            semantic_error_print(3, vdi.VarDec_node->first_line, "func para name redefined");
-            tmp.para_types[prev_para_num] = NULL;
-            return tmp;
-        }
-        symbol_t *new_s = malloc(sizeof(symbol_t));
-        new_s->name = vdi.id;
-        new_s->type = vdi.type;
-        insert_symbol(new_s);
-        tmp.para_types[prev_para_num] = new_s->type;
+        tmp.var_dec_infos[prev_para_num] = vdi;
         return tmp;
     }
 }
 
 int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
 {
+    // FunDec: ID LP VarList RP | ID LP RP
     char *func_name = node->children[0]->tev.id;
     symbol_t *s = look_up_symbol(func_name);
-    if (s && s->type->kind == type_sys_FUNCTION)
-    {
-        semantic_error_print(4, node->children[0]->first_line, "func name redefined");
-        return 1;
-    }
-    // if (!is_definition)
-    // {
-    //     // check declare consistency
-    // }
-    // else
-    // {
-    //     // check re-definition
-
-    //     // check declare-definition consistency
-    // }
-    // FunDec: ID LP VarList RP
+    VarList_info_t vli;
     if (node->children[3] != NULL)
-    {
-        VarList_info_t vli = deal_VarList(node->children[2], 0);
-        type_ptr new_type = malloc(sizeof(struct type_s));
-        new_type->kind = type_sys_FUNCTION;
-        new_type->u.function.return_type = return_type;
-        new_type->u.function.para_num = vli.para_num;
-        new_type->u.function.para_types = vli.para_types;
-        symbol_t *new_s = malloc(sizeof(symbol_t));
-        new_s->name = func_name;
-        new_s->type = new_type;
-        insert_symbol(new_s);
-    }
-    // FunDec: ID LP RP
+        vli = deal_VarList(node->children[2], 0);
     else
     {
+        vli.var_dec_num = 0;
+        vli.var_dec_infos = NULL;
+        vli.VarList_node = NULL;
+    }
+    // func symbol exists
+    // no need to register func symbol again
+    if (s && s->type->kind == type_sys_FUNCTION)
+    {
+        // check re-definition
+        if (is_definition && s->type->u.function.is_defined)
+        {
+            semantic_error_print(4, node->children[0]->first_line, "func redefined");
+            return 1;
+        }
+        // check declare-declare consistency && declare-definition consistency
+        if (!same_type(return_type, s->type->u.function.return_type))
+        {
+            semantic_error_print(19, node->children[0]->first_line, "func inconsistent");
+            return 1;
+        }
+        if (vli.var_dec_num != s->type->u.function.para_num)
+        {
+            semantic_error_print(19, node->children[0]->first_line, "func inconsistent");
+            return 1;
+        }
+        for (int i = 0; i < vli.var_dec_num; ++i)
+        {
+            // register possible new para symbol
+            // same location para name can be the same
+            VarDec_info_t *vdi = &vli.var_dec_infos[i];
+            if (!same_type(vdi->type, s->type->u.function.para_types[i]))
+            {
+                semantic_error_print(19, node->children[0]->first_line, "func inconsistent");
+                return 1;
+            }
+            if (strcmp(vdi->id, s->type->u.function.para_names[i]) == 0)
+                continue;
+            if (look_up_symbol(vdi->id))
+            {
+                semantic_error_print(3, vdi->VarDec_node->first_line, "func para name redefined");
+                continue;
+            }
+            symbol_t *new_para_sym = malloc(sizeof(symbol_t));
+            new_para_sym->name = vdi->id;
+            new_para_sym->type = vdi->type;
+            new_para_sym->scope = para_scope;
+            insert_symbol(new_para_sym);
+        }
+        // reload is_defined
+        s->type->u.function.is_defined = s->type->u.function.is_defined || is_definition;
+    }
+    // func symbol dosen't exist
+    // need to register func symbol
+    else
+    {
+        // register new para symbol
+        for (int i = 0; i < vli.var_dec_num; ++i)
+        {
+            VarDec_info_t *vdi = &vli.var_dec_infos[i];
+            if (look_up_symbol(vdi->id))
+            {
+                semantic_error_print(3, vdi->VarDec_node->first_line, "func para name redefined");
+                continue;
+            }
+            symbol_t *new_para_sym = malloc(sizeof(symbol_t));
+            new_para_sym->name = vdi->id;
+            new_para_sym->type = vdi->type;
+            new_para_sym->scope = para_scope;
+            insert_symbol(new_para_sym);
+        }
+        // register new func symbol
         type_ptr new_type = malloc(sizeof(struct type_s));
         new_type->kind = type_sys_FUNCTION;
         new_type->u.function.return_type = return_type;
-        new_type->u.function.para_num = 0;
-        new_type->u.function.para_types = NULL;
-        symbol_t *new_s = malloc(sizeof(symbol_t));
-        new_s->name = func_name;
-        new_s->type = new_type;
-        insert_symbol(new_s);
+        new_type->u.function.para_num = vli.var_dec_num;
+        new_type->u.function.para_types = malloc(sizeof(type_ptr) * vli.var_dec_num);
+        new_type->u.function.para_names = malloc(sizeof(char *) * vli.var_dec_num);
+        for (int i = 0; i < vli.var_dec_num; ++i)
+        {
+            new_type->u.function.para_types[i] = vli.var_dec_infos[i].type;
+            new_type->u.function.para_names[i] = vli.var_dec_infos[i].id;
+        }
+        // reload is_defined
+        new_type->u.function.is_defined = is_definition;
+        // record first declare line
+        new_type->u.function.first_declare_line = node->first_line;
+        symbol_t *new_func_sym = malloc(sizeof(symbol_t));
+        new_func_sym->name = func_name;
+        new_func_sym->type = new_type;
+        new_func_sym->scope = global_scope;
+        insert_symbol(new_func_sym);
     }
     return 0;
 }
@@ -343,6 +383,7 @@ void deal_CompSt(node_t *node, type_ptr return_type)
                     symbol_t *new_s = malloc(sizeof(symbol_t));
                     new_s->name = var_dec_info->id;
                     new_s->type = var_dec_info->type;
+                    new_s->scope = local_scope;
                     insert_symbol(new_s);
                 }
             }
@@ -362,10 +403,10 @@ void deal_ExtDef(node_t *node)
     {
         deal_ExtDecList(node->children[1], base_type);
     }
-    // ExtDef: Specifier FunDec CompSt | Specifier FunDec
+    // ExtDef: Specifier FunDec CompSt | Specifier FunDec SEMI
     else if (strcmp(node->children[1]->name, "FunDec") == 0)
     {
-        int is_definition = (node->children[2] == NULL) ? 0 : 1;
+        int is_definition = (strcmp(node->children[2]->name, "SEMI") == 0) ? 0 : 1;
         int status = deal_FunDec(node->children[1], base_type, is_definition);
         if (status == 0 && node->children[2])
             deal_CompSt(node->children[2], base_type);
@@ -686,8 +727,24 @@ void deal_all_ExtDef(node_t *node)
             deal_all_ExtDef(node->children[i]);
 }
 
+void find_undefined_func()
+{
+    for (int i = 0; i < TABLE_SIZE; ++i)
+    {
+        list_head_t *h = &symbol_table[i];
+        list_node_t *p = h->next;
+        while (p)
+        {
+            if (p->symbol_ptr->type && p->symbol_ptr->type->kind == type_sys_FUNCTION && !p->symbol_ptr->type->u.function.is_defined)
+                semantic_error_print(18, p->symbol_ptr->type->u.function.first_declare_line, "func declared but not defined");
+            p = p->next;
+        }
+    }
+}
+
 void semantic_analysis(node_t *root)
 {
     init_basic_type_ptr();
     deal_all_ExtDef(root);
+    find_undefined_func();
 }

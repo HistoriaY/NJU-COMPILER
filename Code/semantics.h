@@ -52,8 +52,8 @@ typedef struct DefList_info_s
 typedef struct VarList_info_s
 {
     // VarList: ParamDec COMMA VarList | ParamDec
-    int para_num;
-    type_ptr *para_types;
+    int var_dec_num;
+    VarDec_info_t *var_dec_infos;
     node_t *VarList_node;
 } VarList_info_t;
 

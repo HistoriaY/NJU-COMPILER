@@ -53,7 +53,9 @@ struct type_s
             type_ptr return_type;
             int para_num;
             type_ptr *para_types;
+            char **para_names;
             int is_defined;
+            int first_declare_line;
         } function;
         // array type
         struct
@@ -84,6 +86,12 @@ typedef struct symbol_s
 {
     char *name;    // symbol name
     type_ptr type; // symbol type
+    enum
+    {
+        global_scope,
+        local_scope,
+        para_scope
+    } scope; // symbol scope
 } symbol_t;
 
 // list def
