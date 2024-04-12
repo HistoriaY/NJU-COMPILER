@@ -53,7 +53,7 @@ struct type_s
             type_ptr return_type;
             int para_num;
             type_ptr *para_types;
-            char **para_names;
+            // char **para_names;
             int is_defined;
             int first_declare_line;
         } function;

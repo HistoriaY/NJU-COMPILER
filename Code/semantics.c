@@ -243,18 +243,21 @@ int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
                 semantic_error_print(19, node->children[0]->first_line, "func inconsistent");
                 return 1;
             }
-            if (strcmp(vdi->id, s->type->u.function.para_names[i]) == 0)
-                continue;
-            if (look_up_symbol(vdi->id))
+            // if (strcmp(vdi->id, s->type->u.function.para_names[i]) == 0)
+            //     continue;
+            if (is_definition)
             {
-                semantic_error_print(3, vdi->VarDec_node->first_line, "func para name redefined");
-                continue;
+                if (look_up_symbol(vdi->id))
+                {
+                    semantic_error_print(3, vdi->VarDec_node->first_line, "func para name redefined");
+                    continue;
+                }
+                symbol_t *new_para_sym = malloc(sizeof(symbol_t));
+                new_para_sym->name = vdi->id;
+                new_para_sym->type = vdi->type;
+                new_para_sym->scope = para_scope;
+                insert_symbol(new_para_sym);
             }
-            symbol_t *new_para_sym = malloc(sizeof(symbol_t));
-            new_para_sym->name = vdi->id;
-            new_para_sym->type = vdi->type;
-            new_para_sym->scope = para_scope;
-            insert_symbol(new_para_sym);
         }
         // reload is_defined
         s->type->u.function.is_defined = s->type->u.function.is_defined || is_definition;
@@ -263,20 +266,23 @@ int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
     // need to register func symbol
     else
     {
-        // register new para symbol
-        for (int i = 0; i < vli.var_dec_num; ++i)
+        if (is_definition)
         {
-            VarDec_info_t *vdi = &vli.var_dec_infos[i];
-            if (look_up_symbol(vdi->id))
+            // register new para symbol
+            for (int i = 0; i < vli.var_dec_num; ++i)
             {
-                semantic_error_print(3, vdi->VarDec_node->first_line, "func para name redefined");
-                continue;
+                VarDec_info_t *vdi = &vli.var_dec_infos[i];
+                if (look_up_symbol(vdi->id))
+                {
+                    semantic_error_print(3, vdi->VarDec_node->first_line, "func para name redefined");
+                    continue;
+                }
+                symbol_t *new_para_sym = malloc(sizeof(symbol_t));
+                new_para_sym->name = vdi->id;
+                new_para_sym->type = vdi->type;
+                new_para_sym->scope = para_scope;
+                insert_symbol(new_para_sym);
             }
-            symbol_t *new_para_sym = malloc(sizeof(symbol_t));
-            new_para_sym->name = vdi->id;
-            new_para_sym->type = vdi->type;
-            new_para_sym->scope = para_scope;
-            insert_symbol(new_para_sym);
         }
         // register new func symbol
         type_ptr new_type = malloc(sizeof(struct type_s));
@@ -284,11 +290,11 @@ int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
         new_type->u.function.return_type = return_type;
         new_type->u.function.para_num = vli.var_dec_num;
         new_type->u.function.para_types = malloc(sizeof(type_ptr) * vli.var_dec_num);
-        new_type->u.function.para_names = malloc(sizeof(char *) * vli.var_dec_num);
+        // new_type->u.function.para_names = malloc(sizeof(char *) * vli.var_dec_num);
         for (int i = 0; i < vli.var_dec_num; ++i)
         {
             new_type->u.function.para_types[i] = vli.var_dec_infos[i].type;
-            new_type->u.function.para_names[i] = vli.var_dec_infos[i].id;
+            // new_type->u.function.para_names[i] = vli.var_dec_infos[i].id;
         }
         // reload is_defined
         new_type->u.function.is_defined = is_definition;
