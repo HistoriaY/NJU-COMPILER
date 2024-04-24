@@ -1,3 +1,5 @@
+#ifndef SEMANTICS_H
+#define SEMANTICS_H
 #include "typedef.h"
 
 typedef struct VarDec_info_s
@@ -78,3 +80,5 @@ DefList_info_t deal_DefList(node_t *node, int prev_def_num);
 type_ptr deal_Exp(node_t *node);
 
 void semantic_analysis(node_t *root);
+
+#endif

@@ -1,5 +1,5 @@
-#ifndef TYPEDEF
-#define TYPEDEF
+#ifndef TYPEDEF_H
+#define TYPEDEF_H
 
 // syntax tree
 typedef union token_extra_value
