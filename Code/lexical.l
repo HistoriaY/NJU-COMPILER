@@ -81,31 +81,37 @@ ID [a-zA-Z_][a-zA-Z0-9_]*
 }
 ">" {
     token_extra_value_t tev;
+    tev.relop_type = relop_g;
     yylval.node_ptr = create_token_node("RELOP",yylineno,tev);
     return RELOP;
 }
 "<" {
     token_extra_value_t tev;
+    tev.relop_type = relop_l;
     yylval.node_ptr = create_token_node("RELOP",yylineno,tev);
     return RELOP;
 }
 ">=" {
     token_extra_value_t tev;
+    tev.relop_type = relop_ge;
     yylval.node_ptr = create_token_node("RELOP",yylineno,tev);
     return RELOP;
 }
 "<=" {
     token_extra_value_t tev;
+    tev.relop_type = relop_le;
     yylval.node_ptr = create_token_node("RELOP",yylineno,tev);
     return RELOP;
 }
 "==" {
     token_extra_value_t tev;
+    tev.relop_type = relop_e;
     yylval.node_ptr = create_token_node("RELOP",yylineno,tev);
     return RELOP;
 }
 "!=" {
     token_extra_value_t tev;
+    tev.relop_type = relop_ne;
     yylval.node_ptr = create_token_node("RELOP",yylineno,tev);
     return RELOP;
 }

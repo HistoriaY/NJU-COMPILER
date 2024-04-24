@@ -7,7 +7,7 @@ typedef union token_extra_value
     // ID
     char *id;
     // TYPE
-    enum type_t
+    enum
     {
         TYPE_token_INT,
         TYPE_token_FLOAT
@@ -16,6 +16,16 @@ typedef union token_extra_value
     int int_val;
     // FLOAT
     float float_val;
+    // RELOP
+    enum
+    {
+        relop_g,
+        relop_l,
+        relop_e,
+        relop_ge,
+        relop_le,
+        relop_ne
+    } relop_type;
 } token_extra_value_t;
 
 typedef struct node_s
