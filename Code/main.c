@@ -2,6 +2,7 @@
 #include <string.h>
 #include "typedef.h"
 #include "semantics.h"
+#include "ir.h"
 
 node_t *root;
 symbol_table_t symbol_table;
@@ -51,9 +52,31 @@ void print_node_info(node_t *node, int indent)
     }
 }
 
+void gen_ir_codes(char *output)
+{
+    FILE *file = fopen(output, "w");
+    if (file == NULL)
+    {
+        fprintf(stderr, "can't open ir output file: %s\n", output);
+        return;
+    }
+    code_t *curr = ir_start;
+    if (curr)
+    {
+        fprintf(file, "%s\n", curr->code_str);
+        curr = curr->next;
+        while (curr != ir_start)
+        {
+            fprintf(file, "%s\n", curr->code_str);
+            curr = curr->next;
+        }
+    }
+    fclose(file);
+}
+
 int main(int argc, char **argv)
 {
-    if (argc <= 1)
+    if (argc <= 2)
         return 1;
     FILE *f = fopen(argv[1], "r");
     if (!f)
@@ -67,6 +90,11 @@ int main(int argc, char **argv)
     {
         // print_node_info(root, 0);
         semantic_analysis(root);
+    }
+    if (!error)
+    {
+        trans_Program(root);
+        gen_ir_codes(argv[2]);
     }
     fclose(f);
     return 0;

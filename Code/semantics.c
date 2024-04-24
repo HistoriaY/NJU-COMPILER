@@ -16,10 +16,17 @@ void init_basic_type_ptr()
     type_ptr_float->kind = type_sys_FLOAT;
 }
 
+void set_error();
 int errored[1024];
 // semantic error print
 void semantic_error_print(int error_type, int line, char *msg)
 {
+    static int flag = 0;
+    if (!flag)
+    {
+        set_error();
+        flag = 1;
+    }
     if (!errored[line])
     {
         printf("Error type %d at Line %d: %s.\n", error_type, line, msg);
