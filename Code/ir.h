@@ -15,5 +15,7 @@ code_t *new_empty_code();
 
 code_t *trans_Cond(node_t *node, char *label_true, char *label_false);
 code_t *trans_Exp(node_t *node, char *place);
+code_t *trans_Args(node_t *node, char **arg_list, int pos);
+code_t *trans_Stmt(node_t *node);
 void trans_Program(node_t *node);
 #endif
