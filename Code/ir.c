@@ -208,9 +208,17 @@ code_t *trans_Exp(node_t *node, char *place)
     // Exp: Exp ASSIGNOP Exp
     if (strcmp(second_child->name, "ASSIGNOP") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp ASSIGNOP Exp");
-        return code;
+        // Exp1 : ID
+        if (strcmp(first_child->children[0]->name, "ID") == 0)
+        {
+            char *t1 = new_temp();
+            code_t *code1 = trans_Exp(node->children[2], t1);
+            code_t *code2 = new_empty_code();
+            code2->code_str = createFormattedString("%s := %s\n%s := %s", first_child->children[0]->tev.id, t1, place, first_child->children[0]->tev.id);
+            return merge_code(2, code1, code2);
+        }
+        // Exp1 : array[i]
+        // Exp1 : structure.field
     }
     // Exp: Exp AND Exp | Exp OR Exp | NOT Exp | Exp RELOP Exp
     if (strcmp(second_child->name, "AND") == 0 || strcmp(second_child->name, "OR") == 0 ||
@@ -460,11 +468,36 @@ code_t *trans_Args(node_t *node, char **arg_list, int pos)
     }
 }
 
-void tmp(node_t *node)
+code_t *trans_FunDec(node_t *node)
 {
-    if (strcmp(node->name, "CompSt") == 0)
+    code_t *code = new_empty_code();
+    code->code_str = createFormattedString("TODO: trans FunDec");
+    return code;
+}
+
+code_t *trans_ExtDef(node_t *node)
+{
+    // no need to trans Specifier
+    // ExtDef: Specifier SEMI (no this case)
+    // ExtDef: Specifier ExtDecList SEMI (no this case)
+    if (strcmp(node->children[1]->name, "ExtDecList") == 0)
     {
-        code_t *code = trans_CompSt(node);
+        exit(1);
+    }
+    // ExtDef: Specifier FunDec CompSt (only this case) | Specifier FunDec SEMI (no this case)
+    else if (strcmp(node->children[1]->name, "FunDec") == 0)
+    {
+        code_t *code1 = trans_FunDec(node->children[1]);
+        code_t *code2 = trans_CompSt(node->children[2]);
+        return merge_code(2, code1, code2);
+    }
+}
+
+void trans_all_ExtDef(node_t *node)
+{
+    if (strcmp(node->name, "ExtDef") == 0)
+    {
+        code_t *code = trans_ExtDef(node);
         if (ir_start == NULL)
             ir_start = code;
         else
@@ -473,10 +506,10 @@ void tmp(node_t *node)
     }
     for (int i = 0; i < 7; ++i)
         if (node->children[i] != NULL)
-            tmp(node->children[i]);
+            trans_all_ExtDef(node->children[i]);
 }
 
 void trans_Program(node_t *root)
 {
-    tmp(root);
+    trans_all_ExtDef(root);
 }
