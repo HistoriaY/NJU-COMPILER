@@ -11,9 +11,11 @@ void init_basic_type_ptr()
 {
     type_ptr_int = malloc(sizeof(struct type_s));
     type_ptr_int->kind = type_sys_INT;
+    type_ptr_int->size = 4;
 
     type_ptr_float = malloc(sizeof(struct type_s));
     type_ptr_float->kind = type_sys_FLOAT;
+    type_ptr_float->size = 4;
 }
 
 void init_built_in_func()
@@ -30,6 +32,7 @@ void init_built_in_func()
     read_func->type->u.function.para_types = NULL;
     read_func->type->u.function.return_type = type_ptr_int;
     read_func->scope = global_scope;
+    read_func->type->size = 0;
     insert_symbol(read_func);
     symbol_t *write_func = malloc(sizeof(symbol_t));
     char *write = "write";
@@ -44,6 +47,7 @@ void init_built_in_func()
     write_func->type->u.function.para_types[0] = type_ptr_int;
     write_func->type->u.function.return_type = type_ptr_int;
     write_func->scope = global_scope;
+    write_func->type->size = 0;
     insert_symbol(write_func);
 }
 
@@ -112,6 +116,8 @@ type_ptr deal_StructSpecifier(node_t *node)
         type_ptr new_type = malloc(sizeof(struct type_s));
         // kind
         new_type->kind = type_sys_STRUCTURE;
+        // size
+        new_type->size = 0;
         // field
         struct_field_ptr first_field = NULL, prev_field = NULL, curr_field = NULL;
         if (node->children[3] != NULL)
@@ -143,6 +149,7 @@ type_ptr deal_StructSpecifier(node_t *node)
                     curr_field = malloc(sizeof(struct struct_field_s));
                     curr_field->name = var_dec_info->id;
                     curr_field->type = var_dec_info->type;
+                    new_type->size += curr_field->type->size;
                     curr_field->next_field = NULL;
                     // register new field symbol
                     symbol_t *new_fs = malloc(sizeof(symbol_t));
@@ -325,6 +332,7 @@ int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
         // register new func symbol
         type_ptr new_type = malloc(sizeof(struct type_s));
         new_type->kind = type_sys_FUNCTION;
+        new_type->size = 0;
         new_type->u.function.return_type = return_type;
         new_type->u.function.para_num = vli.var_dec_num;
         new_type->u.function.para_types = malloc(sizeof(type_ptr) * vli.var_dec_num);
@@ -473,6 +481,7 @@ VarDec_info_t deal_VarDec(node_t *node, type_ptr base_type)
         tail_type->kind = type_sys_ARRAY;
         tail_type->u.array.size = node->children[2]->tev.int_val;
         tail_type->u.array.elem_type = base_type;
+        tail_type->size = tail_type->u.array.size * tail_type->u.array.elem_type->size;
         VarDec_info_t tmp = deal_VarDec(first_child, tail_type);
         tmp.VarDec_node = node;
         return tmp;

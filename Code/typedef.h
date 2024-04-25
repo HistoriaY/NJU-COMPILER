@@ -80,6 +80,7 @@ struct type_s
             struct_field_ptr struct_field;
         } structure;
     } u;
+    int size; // type size in bytes
 };
 
 int same_type(type_ptr t1, type_ptr t2);
