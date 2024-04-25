@@ -10,6 +10,9 @@ typedef struct code_s
 } code_t;
 extern code_t *ir_start;
 
+char *createFormattedString(const char *format, ...);
+code_t *new_empty_code();
+
 code_t *trans_Cond(node_t *node, char *label_true, char *label_false);
 code_t *trans_Exp(node_t *node, char *place);
 void trans_Program(node_t *node);

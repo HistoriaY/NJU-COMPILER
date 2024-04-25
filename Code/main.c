@@ -4,9 +4,6 @@
 #include "semantics.h"
 #include "ir.h"
 
-node_t *root;
-symbol_table_t symbol_table;
-
 static int error = 0;
 
 void set_error()

@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+node_t *root;
+symbol_table_t symbol_table;
+
 unsigned int hash(char *name)
 {
     unsigned int val = 0, i;

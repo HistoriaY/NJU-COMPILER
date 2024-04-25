@@ -16,6 +16,37 @@ void init_basic_type_ptr()
     type_ptr_float->kind = type_sys_FLOAT;
 }
 
+void init_built_in_func()
+{
+    symbol_t *read_func = malloc(sizeof(symbol_t));
+    char *read = "read";
+    read_func->name = malloc(sizeof(char) * (strlen(read) + 1));
+    strcpy(read_func->name, read);
+    read_func->type = malloc(sizeof(struct type_s));
+    read_func->type->kind = type_sys_FUNCTION;
+    read_func->type->u.function.first_declare_line = 0;
+    read_func->type->u.function.is_defined = 1;
+    read_func->type->u.function.para_num = 0;
+    read_func->type->u.function.para_types = NULL;
+    read_func->type->u.function.return_type = type_ptr_int;
+    read_func->scope = global_scope;
+    insert_symbol(read_func);
+    symbol_t *write_func = malloc(sizeof(symbol_t));
+    char *write = "write";
+    write_func->name = malloc(sizeof(char) * (strlen(write) + 1));
+    strcpy(write_func->name, write);
+    write_func->type = malloc(sizeof(struct type_s));
+    write_func->type->kind = type_sys_FUNCTION;
+    write_func->type->u.function.first_declare_line = 0;
+    write_func->type->u.function.is_defined = 1;
+    write_func->type->u.function.para_num = 1;
+    write_func->type->u.function.para_types = malloc(sizeof(type_ptr) * 1);
+    write_func->type->u.function.para_types[0] = type_ptr_int;
+    write_func->type->u.function.return_type = type_ptr_int;
+    write_func->scope = global_scope;
+    insert_symbol(write_func);
+}
+
 void set_error();
 int errored[1024];
 // semantic error print
@@ -758,6 +789,7 @@ void find_undefined_func()
 void semantic_analysis(node_t *root)
 {
     init_basic_type_ptr();
+    init_built_in_func();
     deal_all_ExtDef(root);
     find_undefined_func();
 }

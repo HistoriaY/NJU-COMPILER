@@ -5,6 +5,26 @@
 #include "ir.h"
 #include "typedef.h"
 
+static const char *IR_LABEL_FORMAT = "LABEL %s :";
+static const char *IR_FUNC_FORMAT = "FUNCTION %s :";
+static const char *IR_COND_JMP_FORMAT = "IF %s %s %s GOTO %s";
+static const char *IR_JMP_FORMAT = "GOTO %s";
+static const char *IR_RETURN_FORMAT = "RETURN %s";
+
+// gen single line code
+code_t *gen_ir_label_code(const char *const label)
+{
+    code_t *code = new_empty_code();
+    code->code_str = createFormattedString(IR_LABEL_FORMAT, label);
+    return code;
+}
+code_t *gen_ir_jmp_code(const char *const label)
+{
+    code_t *code = new_empty_code();
+    code->code_str = createFormattedString(IR_JMP_FORMAT, label);
+    return code;
+}
+
 // ir code entrance
 code_t *ir_start = NULL;
 
@@ -124,12 +144,10 @@ code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
         code_t *code2 = trans_Exp(node->children[2], t2);
         char *op = get_relop(node->children[1]);
         code_t *code3 = new_empty_code();
-        code3->code_str = createFormattedString("IF %s %s %s GOTO %s", t1, op, t2, label_true);
-        code_t *code4 = new_empty_code();
-        code4->code_str = createFormattedString("GOTO %s", label_false);
+        code3->code_str = createFormattedString(IR_COND_JMP_FORMAT, t1, op, t2, label_true);
         free(t1);
         free(t2);
-        return merge_code(4, code1, code2, code3, code4);
+        return merge_code(4, code1, code2, code3, gen_ir_jmp_code(label_false));
     }
     // Exp: NOT Exp
     if (strcmp(node->children[0]->name, "NOT") == 0)
@@ -142,10 +160,8 @@ code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
         char *label1 = new_label();
         code_t *code1 = trans_Cond(node->children[0], label1, label_false);
         code_t *code2 = trans_Cond(node->children[2], label_true, label_false);
-        code_t *code3 = new_empty_code();
-        code3->code_str = createFormattedString("LABEL %s", label1);
         free(label1);
-        return merge_code(3, code1, code3, code2);
+        return merge_code(3, code1, gen_ir_label_code(label1), code2);
     }
     // Exp: Exp OR Exp
     if (node->children[1] && strcmp(node->children[1]->name, "OR") == 0)
@@ -153,20 +169,16 @@ code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
         char *label1 = new_label();
         code_t *code1 = trans_Cond(node->children[0], label_true, label1);
         code_t *code2 = trans_Cond(node->children[2], label_true, label_false);
-        code_t *code3 = new_empty_code();
-        code3->code_str = createFormattedString("LABEL %s", label1);
         free(label1);
-        return merge_code(3, code1, code3, code2);
+        return merge_code(3, code1, gen_ir_label_code(label1), code2);
     }
     // other cases
     char *t1 = new_temp();
     code_t *code1 = trans_Exp(node, t1);
     code_t *code2 = new_empty_code();
-    code2->code_str = createFormattedString("IF %s != #0 GOTO %s", t1, label_true);
-    code_t *code3 = new_empty_code();
-    code3->code_str = createFormattedString("GOTO %s", label_false);
+    code2->code_str = createFormattedString(IR_COND_JMP_FORMAT, t1, "!=", "#0", label_true);
     free(t1);
-    return merge_code(3, code1, code2, code3);
+    return merge_code(3, code1, code2, gen_ir_jmp_code(label_false));
 }
 
 code_t *trans_Exp(node_t *node, char *place)
@@ -200,68 +212,57 @@ code_t *trans_Exp(node_t *node, char *place)
         code->code_str = createFormattedString("TODO: Exp: Exp ASSIGNOP Exp");
         return code;
     }
-    // Exp: Exp AND Exp | Exp OR Exp | NOT Exp
-    if (strcmp(second_child->name, "AND") == 0)
+    // Exp: Exp AND Exp | Exp OR Exp | NOT Exp | Exp RELOP Exp
+    if (strcmp(second_child->name, "AND") == 0 || strcmp(second_child->name, "OR") == 0 ||
+        strcmp(first_child->name, "NOT") == 0 || strcmp(second_child->name, "RELOP") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp AND Exp");
-        return code;
+        char *label1 = new_label();
+        char *label2 = new_label();
+        code_t *code0 = new_empty_code();
+        code0->code_str = createFormattedString("%s := #0", place);
+        code_t *code1 = trans_Cond(node, label1, label2);
+        code_t *code2 = gen_ir_label_code(label1);
+        code_t *code3 = new_empty_code();
+        code3->code_str = createFormattedString("%s := #1", place);
+        free(label1);
+        free(label2);
+        return merge_code(5, code0, code1, code2, code3, gen_ir_label_code(label2));
     }
-    if (strcmp(second_child->name, "OR") == 0)
+    // Exp: Exp PLUS Exp | Exp MINUS Exp | Exp STAR Exp | Exp DIV Exp
+    if (strcmp(second_child->name, "PLUS") == 0 || strcmp(second_child->name, "MINUS") == 0 ||
+        strcmp(second_child->name, "STAR") == 0 || strcmp(second_child->name, "DIV") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp OR Exp");
-        return code;
+        char *t1 = new_temp();
+        char *t2 = new_temp();
+        code_t *code1 = trans_Exp(first_child, t1);
+        code_t *code2 = trans_Exp(node->children[2], t2);
+        code_t *code3 = new_empty_code();
+        if (strcmp(second_child->name, "PLUS") == 0)
+            code3->code_str = createFormattedString("%s := %s + %s", place, t1, t2);
+        else if (strcmp(second_child->name, "MINUS") == 0)
+            code3->code_str = createFormattedString("%s := %s - %s", place, t1, t2);
+        else if (strcmp(second_child->name, "STAR") == 0)
+            code3->code_str = createFormattedString("%s := %s * %s", place, t1, t2);
+        else if (strcmp(second_child->name, "DIV") == 0)
+            code3->code_str = createFormattedString("%s := %s / %s", place, t1, t2);
+        free(t1);
+        free(t2);
+        return merge_code(3, code1, code2, code3);
     }
-    if (strcmp(first_child->name, "NOT") == 0)
-    {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp NOT Exp");
-        return code;
-    }
-    // Exp: Exp PLUS Exp | Exp MINUS Exp | Exp STAR Exp | Exp DIV Exp | Exp RELOP Exp |  MINUS Exp %prec NEG
-    if (strcmp(second_child->name, "PLUS") == 0)
-    {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp PLUS Exp");
-        return code;
-    }
-    if (strcmp(second_child->name, "MINUS") == 0)
-    {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp MINUS Exp");
-        return code;
-    }
-    if (strcmp(second_child->name, "STAR") == 0)
-    {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp STAR Exp");
-        return code;
-    }
-    if (strcmp(second_child->name, "DIV") == 0)
-    {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp DIV Exp");
-        return code;
-    }
-    if (strcmp(second_child->name, "RELOP") == 0)
-    {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp RELOP Exp");
-        return code;
-    }
+    // Exp: MINUS Exp %prec NEG
     if (strcmp(first_child->name, "MINUS") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: MINUS Exp");
-        return code;
+        char *t1 = new_temp();
+        code_t *code1 = trans_Exp(second_child, t1);
+        code_t *code2 = new_empty_code();
+        code2->code_str = createFormattedString("%s := #0 - %s", place, t1);
+        free(t1);
+        return merge_code(2, code1, code2);
     }
     // Exp: LP Exp RP
     if (strcmp(first_child->name, "LP") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: LP Exp RP");
-        return code;
+        return trans_Exp(second_child, place);
     }
     // Exp: ID LP Args RP | ID LP RP
     if (strcmp(second_child->name, "LP") == 0)
@@ -286,6 +287,17 @@ code_t *trans_Exp(node_t *node, char *place)
     }
 }
 
+code_t *trans_CompSt(node_t *node)
+{
+    // CompSt: LC DefList StmtList RC
+    if (node->children[1] != NULL)
+    {
+    }
+    if (node->children[2] != NULL)
+    {
+    }
+}
+
 code_t *trans_Stmt(node_t *node)
 {
     // case Stmt of
@@ -293,38 +305,58 @@ code_t *trans_Stmt(node_t *node)
     // Stmt: Exp SEMI
     if (strcmp(first_child->name, "Exp") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Stmt: Exp SEMI");
-        return code;
+        return trans_Exp(first_child, NULL);
     }
     // Stmt: CompSt
     if (strcmp(first_child->name, "CompSt") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Stmt: CompSt");
-        return code;
+        return trans_CompSt(first_child);
     }
     // Stmt: RETURN Exp SEMI
     if (strcmp(first_child->name, "RETURN") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Stmt: RETURN Exp SEMI");
-        return code;
+        char *t1 = new_temp();
+        code_t *code1 = trans_Exp(node->children[1], t1);
+        code_t *code2 = new_empty_code();
+        code2->code_str = createFormattedString(IR_RETURN_FORMAT, t1);
+        free(t1);
+        return merge_code(2, code1, code2);
     }
     // Stmt: WHILE LP Exp RP Stmt
     if (strcmp(first_child->name, "WHILE") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Stmt: WHILE LP Exp RP Stmt");
-        return code;
+        char *label1 = new_label(), *label2 = new_label(), *label3 = new_label();
+        code_t *code1 = trans_Cond(node->children[2], label2, label3);
+        code_t *code2 = trans_Stmt(node->children[4]);
+        free(label1);
+        free(label2);
+        free(label3);
+        return merge_code(6, gen_ir_label_code(label1), code1, gen_ir_label_code(label2), code2, gen_ir_jmp_code(label1), gen_ir_label_code(label3));
     }
     // Stmt: IF LP Exp RP Stmt %prec LOWER_THAN_ELSE
     // Stmt: IF LP Exp RP Stmt ELSE Stmt
     if (strcmp(first_child->name, "IF") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Stmt: IF");
-        return code;
+        if (node->children[5] == NULL)
+        {
+            char *label1 = new_label(), *label2 = new_label();
+            code_t *code1 = trans_Cond(node->children[2], label1, label2);
+            code_t *code2 = trans_Stmt(node->children[4]);
+            free(label1);
+            free(label2);
+            return merge_code(4, code1, gen_ir_label_code(label1), code2, gen_ir_label_code(label2));
+        }
+        else
+        {
+            char *label1 = new_label(), *label2 = new_label(), *label3 = new_label();
+            code_t *code1 = trans_Cond(node->children[2], label1, label2);
+            code_t *code2 = trans_Stmt(node->children[4]);
+            code_t *code3 = trans_Stmt(node->children[6]);
+            free(label1);
+            free(label2);
+            free(label3);
+            return merge_code(7, code1, gen_ir_label_code(label1), code2, gen_ir_jmp_code(label3), gen_ir_label_code(label2), code3, gen_ir_label_code(label3));
+        }
     }
 }
 
