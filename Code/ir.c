@@ -10,6 +10,7 @@ static const char *IR_FUNC_FORMAT = "FUNCTION %s :";
 static const char *IR_COND_JMP_FORMAT = "IF %s %s %s GOTO %s";
 static const char *IR_JMP_FORMAT = "GOTO %s";
 static const char *IR_RETURN_FORMAT = "RETURN %s";
+static const char *IR_PARAM_FORMAT = "PARAM %s";
 
 // gen single line code
 code_t *gen_ir_label_code(const char *const label)
@@ -132,6 +133,14 @@ char *get_relop(node_t *node)
     }
 }
 
+char *get_VarDec_name(node_t *node)
+{
+    // VarDec: ID | VarDec LB INT RB
+    if (strcmp(node->children[0]->name, "ID") == 0)
+        return node->children[0]->tev.id;
+    return get_VarDec_name(node->children[0]);
+}
+
 code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
 {
     // case Exp of
@@ -219,6 +228,12 @@ code_t *trans_Exp(node_t *node, char *place)
         }
         // Exp1 : array[i]
         // Exp1 : structure.field
+        else
+        {
+            code_t *code = new_empty_code();
+            code->code_str = createFormattedString("TODO: other Exp ASSIGNOP Exp");
+            return code;
+        }
     }
     // Exp: Exp AND Exp | Exp OR Exp | NOT Exp | Exp RELOP Exp
     if (strcmp(second_child->name, "AND") == 0 || strcmp(second_child->name, "OR") == 0 ||
@@ -468,11 +483,32 @@ code_t *trans_Args(node_t *node, char **arg_list, int pos)
     }
 }
 
+code_t *trans_ParamDec(node_t *node)
+{
+    // ParamDec: Specifier VarDec
+    char *name = get_VarDec_name(node->children[1]);
+    code_t *code = new_empty_code();
+    code->code_str = createFormattedString(IR_PARAM_FORMAT, name);
+    return code;
+}
+
+code_t *trans_VarList(node_t *node)
+{
+    // VarList: ParamDec COMMA VarList | ParamDec
+    code_t *code1 = trans_ParamDec(node->children[0]);
+    if (node->children[2])
+        code1 = merge_code(2, code1, trans_VarList(node->children[2]));
+    return code1;
+}
+
 code_t *trans_FunDec(node_t *node)
 {
-    code_t *code = new_empty_code();
-    code->code_str = createFormattedString("TODO: trans FunDec");
-    return code;
+    // FunDec: ID LP VarList RP | ID LP RP
+    code_t *code1 = new_empty_code();
+    code1->code_str = createFormattedString(IR_FUNC_FORMAT, node->children[0]->tev.id);
+    if (strcmp(node->children[2]->name, "VarList") == 0)
+        code1 = merge_code(2, code1, trans_VarList(node->children[2]));
+    return code1;
 }
 
 code_t *trans_ExtDef(node_t *node)
