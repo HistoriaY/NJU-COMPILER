@@ -11,6 +11,7 @@ static const char *IR_COND_JMP_FORMAT = "IF %s %s %s GOTO %s";
 static const char *IR_JMP_FORMAT = "GOTO %s";
 static const char *IR_RETURN_FORMAT = "RETURN %s";
 static const char *IR_PARAM_FORMAT = "PARAM %s";
+static const char *IR_DEC_FORMAT = "DEC %s %d";
 
 // gen single line code
 code_t *gen_ir_label_code(const char *const label)
@@ -347,11 +348,32 @@ code_t *trans_Exp(node_t *node, char *place)
     }
 }
 
+code_t *trans_Dec(node_t *node)
+{
+    // Dec: VarDec | VarDec ASSIGNOP Exp
+    char *name = get_VarDec_name(node->children[0]);
+    symbol_t *s = look_up_symbol(name);
+    code_t *code = new_empty_code();
+    if (s->type->kind == type_sys_INT || s->type->kind == type_sys_FLOAT)
+        code->code_str = NULL;
+    else
+        code->code_str = createFormattedString(IR_DEC_FORMAT, s->name, s->type->size);
+    return code;
+}
+
+code_t *trans_DecList(node_t *node)
+{
+    // DecList: Dec | Dec COMMA DecList
+    code_t *code = trans_Dec(node->children[0]);
+    if (node->children[2])
+        code = merge_code(2, code, trans_DecList(node->children[2]));
+    return code;
+}
+
 code_t *trans_Def(node_t *node)
 {
-    code_t *code = new_empty_code();
-    code->code_str = createFormattedString("TODO: trans Def");
-    return code;
+    // Def: Specifier DecList SEMI
+    return trans_DecList(node->children[1]);
 }
 
 code_t *trans_DefList(node_t *node)
