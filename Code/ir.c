@@ -70,6 +70,8 @@ code_t *merge_code(int count, ...)
     for (int i = 0; i < count; ++i)
     {
         code_t *code = va_arg(args, code_t *);
+        if (code == NULL)
+            continue;
         if (head == NULL)
         {
             head = code;
@@ -191,6 +193,8 @@ code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
     return merge_code(3, code1, code2, gen_ir_jmp_code(label_false));
 }
 
+type_ptr deal_Exp(node_t *node);
+
 code_t *trans_Exp(node_t *node, char *place)
 {
     // case Exp of
@@ -199,8 +203,15 @@ code_t *trans_Exp(node_t *node, char *place)
     // Exp: ID | INT | FLOAT
     if (strcmp(first_child->name, "ID") == 0 && second_child == NULL)
     {
+        symbol_t *s = look_up_symbol(first_child->tev.id);
+        type_ptr type = s->type;
         code_t *code = new_empty_code();
-        code->code_str = createFormattedString("%s := %s", place, node->children[0]->tev.id);
+        if (type->kind == type_sys_INT || type->kind == type_sys_FLOAT)
+            code->code_str = createFormattedString("%s := %s", place, node->children[0]->tev.id);
+        else if (type->kind == type_sys_ARRAY)
+            code->code_str = createFormattedString("%s := *%s", place, node->children[0]->tev.id);
+        else if (type->kind == type_sys_STRUCTURE)
+            code->code_str = createFormattedString("%s := %s", place, node->children[0]->tev.id);
         return code;
     }
     if (strcmp(first_child->name, "INT") == 0)
@@ -215,25 +226,31 @@ code_t *trans_Exp(node_t *node, char *place)
         code->code_str = createFormattedString("%s := #%f", place, node->children[0]->tev.float_val);
         return code;
     }
-    // Exp: Exp ASSIGNOP Exp
+    // Exp: Exp1 ASSIGNOP Exp2
     if (strcmp(second_child->name, "ASSIGNOP") == 0)
     {
         // Exp1 : ID
         if (strcmp(first_child->children[0]->name, "ID") == 0)
         {
+            // type_ptr type = deal_Exp(node->children[0]);
             char *t1 = new_temp();
             code_t *code1 = trans_Exp(node->children[2], t1);
             code_t *code2 = new_empty_code();
             code2->code_str = createFormattedString("%s := %s\n%s := %s", first_child->children[0]->tev.id, t1, place, first_child->children[0]->tev.id);
             return merge_code(2, code1, code2);
         }
-        // Exp1 : array[i]
-        // Exp1 : structure.field
-        else
+        // Exp1 : Exp DOT ID
+        else if (strcmp(first_child->children[1]->name, "DOT") == 0)
+            exit(1);
+        // Exp1 : Exp LB Exp RB
+        else if (strcmp(first_child->children[1]->name, "LB") == 0)
         {
-            code_t *code = new_empty_code();
-            code->code_str = createFormattedString("TODO: other Exp ASSIGNOP Exp");
-            return code;
+            char *t1 = new_temp(), *t2 = new_temp();
+            code_t *code1 = trans_Exp(first_child, t1);
+            code_t *code2 = trans_Exp(node->children[2], t2);
+            code_t *code3 = new_empty_code();
+            code3->code_str = createFormattedString("%s := %s\n%s := %s", t1, t2, place, t1);
+            return merge_code(3, code1, code2, code3);
         }
     }
     // Exp: Exp AND Exp | Exp OR Exp | NOT Exp | Exp RELOP Exp
@@ -342,9 +359,17 @@ code_t *trans_Exp(node_t *node, char *place)
     // Exp: Exp LB Exp RB
     if (strcmp(second_child->name, "LB") == 0)
     {
-        code_t *code = new_empty_code();
-        code->code_str = createFormattedString("TODO: Exp: Exp LB Exp RB");
-        return code;
+        char *t1 = new_temp(), *t2 = new_temp(), *t3 = new_temp(), *t4 = new_temp(), *t5 = new_temp();
+        code_t *code1 = trans_Exp(node->children[0], t1);
+        code_t *code2 = trans_Exp(node->children[2], t2);
+        type_ptr type = deal_Exp(node->children[0]);
+        code_t *code3 = new_empty_code(), *code4 = new_empty_code(), *code5 = new_empty_code(), *code6 = new_empty_code();
+        // place = *(&t1 + t2 * elem_size) -> humorous ^.^
+        code3->code_str = createFormattedString("%s := &%s", t3, t1);
+        code4->code_str = createFormattedString("%s := %s * %d", t4, t2, type->u.array.elem_type->size);
+        code5->code_str = createFormattedString("%s := %s + %s", t5, t3, t4);
+        code6->code_str = createFormattedString("%s := *%s", place, t5);
+        return merge_code(6, code1, code2, code3, code4, code5, code6);
     }
 }
 
@@ -353,12 +378,33 @@ code_t *trans_Dec(node_t *node)
     // Dec: VarDec | VarDec ASSIGNOP Exp
     char *name = get_VarDec_name(node->children[0]);
     symbol_t *s = look_up_symbol(name);
-    code_t *code = new_empty_code();
+    code_t *code1 = NULL, *code2 = NULL;
+    // DEC size
     if (s->type->kind == type_sys_INT || s->type->kind == type_sys_FLOAT)
-        code->code_str = NULL;
+        ;
+    else if (s->type->kind == type_sys_ARRAY)
+    {
+        code1 = new_empty_code();
+        char *t = new_temp();
+        code1->code_str = createFormattedString(IR_DEC_FORMAT, t, s->type->size);
+        code_t *retrieve_addr_code = new_empty_code();
+        retrieve_addr_code->code_str = createFormattedString("%s := &%s", s->name, t);
+        free(t);
+        code1 = merge_code(2, code1, retrieve_addr_code);
+    }
     else
-        code->code_str = createFormattedString(IR_DEC_FORMAT, s->name, s->type->size);
-    return code;
+        ;
+    // assign
+    if (node->children[2])
+    {
+        if (s->type->kind == type_sys_INT || s->type->kind == type_sys_FLOAT)
+            code2 = trans_Exp(node->children[2], name);
+        else if (s->type->kind == type_sys_ARRAY)
+            exit(1);
+        else
+            exit(1);
+    }
+    return merge_code(2, code1, code2);
 }
 
 code_t *trans_DecList(node_t *node)
@@ -399,21 +445,9 @@ code_t *trans_CompSt(node_t *node)
     // CompSt: LC DefList StmtList RC
     code_t *code = NULL;
     if (node->children[1] != NULL)
-    {
         code = trans_DefList(node->children[1]);
-    }
     if (node->children[2] != NULL)
-    {
-        if (code == NULL)
-            code = trans_StmtList(node->children[2]);
-        else
-            code = merge_code(2, code, trans_StmtList(node->children[2]));
-    }
-    if (code == NULL)
-    {
-        code = new_empty_code();
-        code->code_str = createFormattedString("");
-    }
+        code = merge_code(2, code, trans_StmtList(node->children[2]));
     return code;
 }
 

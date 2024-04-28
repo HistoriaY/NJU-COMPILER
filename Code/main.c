@@ -60,13 +60,13 @@ void gen_ir_codes(char *output)
     code_t *curr = ir_start;
     if (curr)
     {
-        if (curr->code_str)
-            fprintf(file, "%s\n", curr->code_str);
+        // if (curr->code_str)
+        fprintf(file, "%s\n", curr->code_str);
         curr = curr->next;
         while (curr != ir_start)
         {
-            if (curr->code_str)
-                fprintf(file, "%s\n", curr->code_str);
+            // if (curr->code_str)
+            fprintf(file, "%s\n", curr->code_str);
             curr = curr->next;
         }
     }
