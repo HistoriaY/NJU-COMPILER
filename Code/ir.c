@@ -194,6 +194,46 @@ code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
 }
 
 type_ptr deal_Exp(node_t *node);
+code_t *trans_Exp(node_t *node, char *place);
+
+code_t *trans_array_base_addr(node_t *node, char *base, type_ptr *array_type)
+{
+    // Exp: ID
+    if (strcmp(node->children[0]->name, "ID") == 0)
+    {
+        char *array_name = node->children[0]->tev.id;
+        symbol_t *s = look_up_symbol(array_name);
+        *array_type = s->type;
+        code_t *code = new_empty_code();
+        code->code_str = createFormattedString("%s := %s", base, array_name);
+        return code;
+    }
+    // Exp: Exp LB Exp RB
+    else if (strcmp(node->children[0]->name, "Exp") == 0)
+    {
+        // _base _array_type
+        char *_base = new_temp();
+        type_ptr _array_type;
+        code_t *code1 = trans_array_base_addr(node->children[0], _base, &_array_type);
+        // bias = index * elem_size
+        char *index = new_temp();
+        code_t *code2 = trans_Exp(node->children[2], index);
+        char *bias = new_temp();
+        code_t *code3 = new_empty_code();
+        code3->code_str = createFormattedString("%s := %s * #%d", bias, index, _array_type->u.array.elem_type->size);
+        free(index);
+        // base = _base + bias
+        code_t *code4 = new_empty_code();
+        code4->code_str = createFormattedString("%s := %s + %s", base, _base, bias);
+        free(_base);
+        free(bias);
+        // array_type
+        *array_type = _array_type->u.array.elem_type;
+        return merge_code(4, code1, code2, code3, code4);
+    }
+    else
+        exit(1);
+}
 
 code_t *trans_Exp(node_t *node, char *place)
 {
@@ -245,12 +285,29 @@ code_t *trans_Exp(node_t *node, char *place)
         // Exp1 : Exp LB Exp RB
         else if (strcmp(first_child->children[1]->name, "LB") == 0)
         {
-            char *t1 = new_temp(), *t2 = new_temp();
-            code_t *code1 = trans_Exp(first_child, t1);
-            code_t *code2 = trans_Exp(node->children[2], t2);
+            // base
+            char *base = new_temp();
+            type_ptr array_type;
+            code_t *code1 = trans_array_base_addr(first_child->children[0], base, &array_type);
+            // bias = index * elem_size
+            char *index = new_temp();
+            code_t *code2 = trans_Exp(first_child->children[2], index);
+            char *bias = new_temp();
             code_t *code3 = new_empty_code();
-            code3->code_str = createFormattedString("%s := %s\n%s := %s", t1, t2, place, t1);
-            return merge_code(3, code1, code2, code3);
+            code3->code_str = createFormattedString("%s := %s * #%d", bias, index, array_type->u.array.elem_type->size);
+            // addr = base + bias
+            char *addr = new_temp();
+            code_t *code4 = new_empty_code();
+            code4->code_str = createFormattedString("%s := %s + %s", addr, base, bias);
+            // *addr = t
+            char *t = new_temp();
+            code_t *code5 = trans_Exp(node->children[2], t);
+            code_t *code6 = new_empty_code();
+            code6->code_str = createFormattedString("*%s := %s", addr, t);
+            // place = *addr
+            code_t *code7 = new_empty_code();
+            code7->code_str = createFormattedString("%s := *%s", place, addr);
+            return merge_code(7, code1, code2, code3, code4, code5, code6, code7);
         }
     }
     // Exp: Exp AND Exp | Exp OR Exp | NOT Exp | Exp RELOP Exp
@@ -359,17 +416,28 @@ code_t *trans_Exp(node_t *node, char *place)
     // Exp: Exp LB Exp RB
     if (strcmp(second_child->name, "LB") == 0)
     {
-        char *t1 = new_temp(), *t2 = new_temp(), *t3 = new_temp(), *t4 = new_temp(), *t5 = new_temp();
-        code_t *code1 = trans_Exp(node->children[0], t1);
-        code_t *code2 = trans_Exp(node->children[2], t2);
-        type_ptr type = deal_Exp(node->children[0]);
-        code_t *code3 = new_empty_code(), *code4 = new_empty_code(), *code5 = new_empty_code(), *code6 = new_empty_code();
-        // place = *(&t1 + t2 * elem_size) -> humorous ^.^
-        code3->code_str = createFormattedString("%s := &%s", t3, t1);
-        code4->code_str = createFormattedString("%s := %s * %d", t4, t2, type->u.array.elem_type->size);
-        code5->code_str = createFormattedString("%s := %s + %s", t5, t3, t4);
-        code6->code_str = createFormattedString("%s := *%s", place, t5);
-        return merge_code(6, code1, code2, code3, code4, code5, code6);
+        // base
+        char *base = new_temp();
+        type_ptr array_type;
+        code_t *code1 = trans_array_base_addr(node->children[0], base, &array_type);
+        // bias = index * elem_size
+        char *index = new_temp();
+        code_t *code2 = trans_Exp(node->children[2], index);
+        char *bias = new_temp();
+        code_t *code3 = new_empty_code();
+        code3->code_str = createFormattedString("%s := %s * #%d", bias, index, array_type->u.array.elem_type->size);
+        free(index);
+        // addr = base + bias
+        char *addr = new_temp();
+        code_t *code4 = new_empty_code();
+        code4->code_str = createFormattedString("%s := %s + %s", addr, base, bias);
+        free(base);
+        free(bias);
+        // place = *addr
+        code_t *code5 = new_empty_code();
+        code5->code_str = createFormattedString("%s := *%s", place, addr);
+        free(addr);
+        return merge_code(5, code1, code2, code3, code4, code5);
     }
 }
 
