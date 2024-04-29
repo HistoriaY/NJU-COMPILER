@@ -235,6 +235,35 @@ code_t *trans_array_access(node_t *node, char *base, type_ptr *base_type)
         exit(1);
 }
 
+code_t *trans_array_assign(char *base1, char *base2, type_ptr base_type1, type_ptr base_type2)
+{
+    // base1 = base2
+    // num of assign basic elem
+    int num = (base_type1->size <= base_type2->size) ? (base_type1->size >> 2) : (base_type2->size >> 2);
+    code_t *code = NULL;
+    for (int i = 0; i < num; ++i)
+    {
+        // addr1
+        char *addr1 = new_temp();
+        code_t *code1 = new_empty_code();
+        code1->code_str = createFormattedString("%s := %s + #%d", addr1, base1, i * 4);
+        // addr2
+        char *addr2 = new_temp();
+        code_t *code2 = new_empty_code();
+        code2->code_str = createFormattedString("%s := %s + #%d", addr2, base2, i * 4);
+        // *addr1 = *addr2
+        char *t = new_temp();
+        code_t *code3 = new_empty_code(), *code4 = new_empty_code();
+        code3->code_str = createFormattedString("%s := *%s", t, addr2);
+        code4->code_str = createFormattedString("*%s := %s", addr1, t);
+        free(addr1);
+        free(addr2);
+        free(t);
+        code = merge_code(5, code, code1, code2, code3, code4);
+    }
+    return code;
+}
+
 code_t *trans_Exp(node_t *node, char *place)
 {
     // case Exp of
@@ -269,36 +298,52 @@ code_t *trans_Exp(node_t *node, char *place)
     // Exp: Exp1 ASSIGNOP Exp2
     if (strcmp(second_child->name, "ASSIGNOP") == 0)
     {
-        // Exp1 : ID
-        if (strcmp(first_child->children[0]->name, "ID") == 0)
+        type_ptr t = deal_Exp(first_child);
+        if (t->kind == type_sys_INT || t->kind == type_sys_FLOAT)
         {
-            // type_ptr type = deal_Exp(node->children[0]);
-            char *t1 = new_temp();
-            code_t *code1 = trans_Exp(node->children[2], t1);
-            code_t *code2 = new_empty_code();
-            code2->code_str = createFormattedString("%s := %s\n%s := %s", first_child->children[0]->tev.id, t1, place, first_child->children[0]->tev.id);
-            return merge_code(2, code1, code2);
+            // Exp1 : ID
+            if (strcmp(first_child->children[0]->name, "ID") == 0)
+            {
+                char *t1 = new_temp();
+                code_t *code1 = trans_Exp(node->children[2], t1);
+                code_t *code2 = new_empty_code();
+                code2->code_str = createFormattedString("%s := %s\n%s := %s", first_child->children[0]->tev.id, t1, place, first_child->children[0]->tev.id);
+                return merge_code(2, code1, code2);
+            }
+            // Exp1 : Exp DOT ID
+            else if (strcmp(first_child->children[1]->name, "DOT") == 0)
+                exit(1);
+            // Exp1 : Exp LB Exp RB
+            else if (strcmp(first_child->children[1]->name, "LB") == 0)
+            {
+                // addr
+                char *addr = new_temp();
+                type_ptr useless;
+                code_t *code1 = trans_array_access(first_child, addr, &useless);
+                // *addr = t
+                char *t = new_temp();
+                code_t *code2 = trans_Exp(node->children[2], t);
+                code_t *code3 = new_empty_code();
+                code3->code_str = createFormattedString("*%s := %s", addr, t);
+                // place = *addr
+                code_t *code4 = new_empty_code();
+                code4->code_str = createFormattedString("%s := *%s", place, addr);
+                return merge_code(4, code1, code2, code3, code4);
+            }
         }
-        // Exp1 : Exp DOT ID
-        else if (strcmp(first_child->children[1]->name, "DOT") == 0)
+        else if (t->kind == type_sys_ARRAY)
+        {
+            char *base1 = new_temp(), *base2 = new_temp();
+            type_ptr base_type1, base_type2;
+            code_t *code1 = trans_array_access(first_child, base1, &base_type1);
+            code_t *code2 = trans_array_access(node->children[2], base2, &base_type2);
+            code_t *code3 = trans_array_assign(base1, base2, base_type1, base_type2);
+            free(base1);
+            free(base2);
+            return merge_code(3, code1, code2, code3);
+        }
+        else
             exit(1);
-        // Exp1 : Exp LB Exp RB
-        else if (strcmp(first_child->children[1]->name, "LB") == 0)
-        {
-            // addr
-            char *addr = new_temp();
-            type_ptr useless;
-            code_t *code1 = trans_array_access(first_child, addr, &useless);
-            // *addr = t
-            char *t = new_temp();
-            code_t *code2 = trans_Exp(node->children[2], t);
-            code_t *code3 = new_empty_code();
-            code3->code_str = createFormattedString("*%s := %s", addr, t);
-            // place = *addr
-            code_t *code4 = new_empty_code();
-            code4->code_str = createFormattedString("%s := *%s", place, addr);
-            return merge_code(4, code1, code2, code3, code4);
-        }
     }
     // Exp: Exp AND Exp | Exp OR Exp | NOT Exp | Exp RELOP Exp
     if (strcmp(second_child->name, "AND") == 0 || strcmp(second_child->name, "OR") == 0 ||
@@ -384,7 +429,7 @@ code_t *trans_Exp(node_t *node, char *place)
             {
                 code_t *code2 = new_empty_code();
                 code2->code_str = createFormattedString("ARG %s", arg_list[0]);
-                for (int i = 1; i < function->type->u.function.para_num; ++i)
+                for (int i = function->type->u.function.para_num - 1; i >= 0; --i)
                 {
                     code_t *code3 = new_empty_code();
                     code3->code_str = createFormattedString("ARG %s", arg_list[i]);
