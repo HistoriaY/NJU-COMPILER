@@ -272,15 +272,8 @@ code_t *trans_Exp(node_t *node, char *place)
     // Exp: ID | INT | FLOAT
     if (strcmp(first_child->name, "ID") == 0 && second_child == NULL)
     {
-        symbol_t *s = look_up_symbol(first_child->tev.id);
-        type_ptr type = s->type;
         code_t *code = new_empty_code();
-        if (type->kind == type_sys_INT || type->kind == type_sys_FLOAT)
-            code->code_str = createFormattedString("%s := %s", place, node->children[0]->tev.id);
-        else if (type->kind == type_sys_ARRAY)
-            code->code_str = createFormattedString("%s := *%s", place, node->children[0]->tev.id);
-        else if (type->kind == type_sys_STRUCTURE)
-            code->code_str = createFormattedString("%s := %s", place, node->children[0]->tev.id);
+        code->code_str = createFormattedString("%s := %s", place, node->children[0]->tev.id);
         return code;
     }
     if (strcmp(first_child->name, "INT") == 0)
@@ -427,8 +420,7 @@ code_t *trans_Exp(node_t *node, char *place)
             }
             else
             {
-                code_t *code2 = new_empty_code();
-                code2->code_str = createFormattedString("ARG %s", arg_list[0]);
+                code_t *code2 = NULL;
                 for (int i = function->type->u.function.para_num - 1; i >= 0; --i)
                 {
                     code_t *code3 = new_empty_code();
@@ -483,14 +475,21 @@ code_t *trans_Dec(node_t *node)
         code1 = merge_code(2, code1, retrieve_addr_code);
     }
     else
-        ;
+        exit(1);
     // assign
     if (node->children[2])
     {
         if (s->type->kind == type_sys_INT || s->type->kind == type_sys_FLOAT)
             code2 = trans_Exp(node->children[2], name);
         else if (s->type->kind == type_sys_ARRAY)
-            exit(1);
+        {
+            char *base2 = new_temp();
+            type_ptr base_type2;
+            code_t *code2 = trans_array_access(node->children[2], base2, &base_type2);
+            code_t *code3 = trans_array_assign(name, base2, s->type, base_type2);
+            free(base2);
+            code2 = merge_code(2, code2, code3);
+        }
         else
             exit(1);
     }
