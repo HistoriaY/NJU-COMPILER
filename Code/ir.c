@@ -612,19 +612,48 @@ code_t *trans_Args(node_t *node, char **arg_list, int pos)
     // Args: Exp
     if (node->children[2] == NULL)
     {
-        char *t1 = new_temp();
-        code_t *code1 = trans_Exp(node->children[0], t1);
-        arg_list[pos] = t1;
-        return code1;
+        type_ptr t = deal_Exp(node->children[0]);
+        if (t->kind == type_sys_INT || t->kind == type_sys_FLOAT)
+        {
+            char *t1 = new_temp();
+            code_t *code1 = trans_Exp(node->children[0], t1);
+            arg_list[pos] = t1;
+            return code1;
+        }
+        else if (t->kind == type_sys_ARRAY)
+        {
+            char *base = new_temp();
+            type_ptr useless;
+            code_t *code1 = trans_array_access(node->children[0], base, &useless);
+            arg_list[pos] = base;
+            return code1;
+        }
+        else
+            exit(1);
     }
     // Args: Exp COMMA Args
     if (node->children[2])
     {
-        char *t1 = new_temp();
-        code_t *code1 = trans_Exp(node->children[0], t1);
-        arg_list[pos] = t1;
-        code_t *code2 = trans_Args(node->children[2], arg_list, pos + 1);
-        return merge_code(2, code1, code2);
+        type_ptr t = deal_Exp(node->children[0]);
+        if (t->kind == type_sys_INT || t->kind == type_sys_FLOAT)
+        {
+            char *t1 = new_temp();
+            code_t *code1 = trans_Exp(node->children[0], t1);
+            arg_list[pos] = t1;
+            code_t *code2 = trans_Args(node->children[2], arg_list, pos + 1);
+            return merge_code(2, code1, code2);
+        }
+        else if (t->kind == type_sys_ARRAY)
+        {
+            char *base = new_temp();
+            type_ptr useless;
+            code_t *code1 = trans_array_access(node->children[0], base, &useless);
+            arg_list[pos] = base;
+            code_t *code2 = trans_Args(node->children[2], arg_list, pos + 1);
+            return merge_code(2, code1, code2);
+        }
+        else
+            exit(1);
     }
 }
 
