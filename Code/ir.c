@@ -483,7 +483,7 @@ code_t *trans_Dec(node_t *node)
         {
             char *base2 = new_temp();
             type_ptr base_type2;
-            code_t *code2 = trans_array_access(node->children[2], base2, &base_type2);
+            code2 = trans_array_access(node->children[2], base2, &base_type2);
             code_t *code3 = trans_array_assign(name, base2, s->type, base_type2);
             free(base2);
             code2 = merge_code(2, code2, code3);
