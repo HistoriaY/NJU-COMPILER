@@ -6,6 +6,8 @@
 
 // global basic type ptr
 type_ptr type_ptr_int, type_ptr_float;
+// global error type ptr
+type_ptr type_ptr_error;
 
 void init_basic_type_ptr()
 {
@@ -16,6 +18,10 @@ void init_basic_type_ptr()
     type_ptr_float = malloc(sizeof(struct type_s));
     type_ptr_float->kind = type_sys_FLOAT;
     type_ptr_float->size = 4;
+
+    type_ptr_error = malloc(sizeof(struct type_s));
+    type_ptr_error->kind = type_sys_ERROR;
+    type_ptr_error->size = 0;
 }
 
 void init_built_in_func()
@@ -92,7 +98,7 @@ type_ptr deal_StructSpecifier(node_t *node)
         if (s == NULL)
         {
             semantic_error_print(17, node->first_line, "undefined struct");
-            return NULL;
+            return type_ptr_error;
         }
         return s->type;
     }
@@ -104,7 +110,7 @@ type_ptr deal_StructSpecifier(node_t *node)
         if (look_up_symbol(tag_name))
         {
             semantic_error_print(16, node->first_line, "struct name redefined");
-            return NULL;
+            return type_ptr_error;
         }
         symbol_t *new_s = malloc(sizeof(symbol_t));
         // symbol name
@@ -188,13 +194,13 @@ type_ptr deal_Specifier(node_t *node)
             return type_ptr_int;
         else if (first_child->tev.type == TYPE_token_FLOAT)
             return type_ptr_float;
-        return NULL;
+        return type_ptr_error;
     }
     else if (strcmp(first_child->name, "StructSpecifier") == 0)
     {
         return deal_StructSpecifier(first_child);
     }
-    return NULL;
+    return type_ptr_error;
 }
 
 void deal_ExtDecList(node_t *node, type_ptr base_type)
@@ -561,7 +567,7 @@ type_ptr deal_Exp(node_t *node)
         if (s == NULL)
         {
             semantic_error_print(1, first_child->first_line, "var undefined");
-            return NULL;
+            return type_ptr_error;
         }
         return s->type;
     }
@@ -581,12 +587,12 @@ type_ptr deal_Exp(node_t *node)
         if (!same_type(t1, t2))
         {
             semantic_error_print(5, second_child->first_line, "ASSIGNOP mismatch types");
-            return NULL;
+            return type_ptr_error;
         }
         if (!first_child->is_lval)
         {
             semantic_error_print(6, second_child->first_line, "only lval ASSIGNOP val");
-            return NULL;
+            return type_ptr_error;
         }
         return t1;
     }
@@ -598,7 +604,7 @@ type_ptr deal_Exp(node_t *node)
         if (!same_type(t1, t2) || t1->kind != type_sys_INT)
         {
             semantic_error_print(7, second_child->first_line, "AND OP only for int");
-            return NULL;
+            return type_ptr_error;
         }
         return t1;
     }
@@ -609,17 +615,17 @@ type_ptr deal_Exp(node_t *node)
         if (!same_type(t1, t2) || t1->kind != type_sys_INT)
         {
             semantic_error_print(7, second_child->first_line, "OR OP only for int");
-            return NULL;
+            return type_ptr_error;
         }
         return t1;
     }
     if (strcmp(first_child->name, "NOT") == 0)
     {
         type_ptr t = deal_Exp(node->children[1]);
-        if (t == NULL || t->kind != type_sys_INT)
+        if (t == type_ptr_error || t->kind != type_sys_INT)
         {
             semantic_error_print(7, second_child->first_line, "NOT OP only for int");
-            return NULL;
+            return type_ptr_error;
         }
         return t;
     }
@@ -631,7 +637,7 @@ type_ptr deal_Exp(node_t *node)
         if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
         {
             semantic_error_print(7, second_child->first_line, "PLUS mismatch types");
-            return NULL;
+            return type_ptr_error;
         }
         return t1;
     }
@@ -642,7 +648,7 @@ type_ptr deal_Exp(node_t *node)
         if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
         {
             semantic_error_print(7, second_child->first_line, "MINUS mismatch types");
-            return NULL;
+            return type_ptr_error;
         }
         return t1;
     }
@@ -653,7 +659,7 @@ type_ptr deal_Exp(node_t *node)
         if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
         {
             semantic_error_print(7, second_child->first_line, "STAR mismatch types");
-            return NULL;
+            return type_ptr_error;
         }
         return t1;
     }
@@ -664,7 +670,7 @@ type_ptr deal_Exp(node_t *node)
         if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
         {
             semantic_error_print(7, second_child->first_line, "DIV mismatch types");
-            return NULL;
+            return type_ptr_error;
         }
         return t1;
     }
@@ -675,7 +681,7 @@ type_ptr deal_Exp(node_t *node)
         if (!same_type(t1, t2) || (t1->kind != type_sys_INT && t1->kind != type_sys_FLOAT))
         {
             semantic_error_print(7, second_child->first_line, "RELOP mismatch types");
-            return NULL;
+            return type_ptr_error;
         }
         return type_ptr_int;
     }
@@ -695,12 +701,12 @@ type_ptr deal_Exp(node_t *node)
         if (s == NULL)
         {
             semantic_error_print(2, first_child->first_line, "call undefined func");
-            return NULL;
+            return type_ptr_error;
         }
         if (s->type->kind != type_sys_FUNCTION)
         {
             semantic_error_print(11, first_child->first_line, "var can't be called");
-            return NULL;
+            return type_ptr_error;
         }
         if (strcmp(node->children[2]->name, "Args") == 0)
         {
@@ -711,21 +717,21 @@ type_ptr deal_Exp(node_t *node)
                 if (remain_args == NULL)
                 {
                     semantic_error_print(9, first_child->first_line, "func para mismatch");
-                    return NULL;
+                    return type_ptr_error;
                 }
                 node_t *curr_exp = remain_args->children[0];
                 type_ptr curr_exp_type = deal_Exp(curr_exp);
                 if (!same_type(curr_exp_type, s->type->u.function.para_types[i]))
                 {
                     semantic_error_print(9, first_child->first_line, "func para mismatch");
-                    return NULL;
+                    return type_ptr_error;
                 }
                 remain_args = remain_args->children[2];
             }
             if (remain_args)
             {
                 semantic_error_print(9, first_child->first_line, "func para mismatch");
-                return NULL;
+                return type_ptr_error;
             }
         }
         return s->type->u.function.return_type;
@@ -734,10 +740,10 @@ type_ptr deal_Exp(node_t *node)
     if (strcmp(second_child->name, "DOT") == 0)
     {
         type_ptr t = deal_Exp(first_child);
-        if (t == NULL || t->kind != type_sys_STRUCTURE)
+        if (t == type_ptr_error || t->kind != type_sys_STRUCTURE)
         {
             semantic_error_print(13, first_child->first_line, "only strcut can use DOT");
-            return NULL;
+            return type_ptr_error;
         }
         struct_field_ptr next_field = t->u.structure.struct_field;
         while (next_field)
@@ -747,22 +753,22 @@ type_ptr deal_Exp(node_t *node)
             next_field = next_field->next_field;
         }
         semantic_error_print(14, node->children[2]->first_line, "invalid struct field name");
-        return NULL;
+        return type_ptr_error;
     }
     // Exp: Exp LB Exp RB
     if (strcmp(second_child->name, "LB") == 0)
     {
         type_ptr t1 = deal_Exp(first_child);
-        if (t1 == NULL || t1->kind != type_sys_ARRAY)
+        if (t1 == type_ptr_error || t1->kind != type_sys_ARRAY)
         {
             semantic_error_print(10, first_child->first_line, "only array can use []");
-            return NULL;
+            return type_ptr_error;
         }
         type_ptr t2 = deal_Exp(node->children[2]);
-        if (t2 == NULL || t2->kind != type_sys_INT)
+        if (t2 == type_ptr_error || t2->kind != type_sys_INT)
         {
             semantic_error_print(12, first_child->first_line, "only array [int]");
-            return NULL;
+            return type_ptr_error;
         }
         return t1->u.array.elem_type;
     }

@@ -51,7 +51,8 @@ struct type_s
         type_sys_FLOAT,
         type_sys_FUNCTION,
         type_sys_ARRAY,
-        type_sys_STRUCTURE
+        type_sys_STRUCTURE,
+        type_sys_ERROR
     } kind;
     union
     {
