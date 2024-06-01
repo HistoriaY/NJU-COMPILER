@@ -73,6 +73,9 @@ void gen_ir_codes(char *output)
     fclose(file);
 }
 
+void yyrestart(FILE *input_file);
+int yyparse(void);
+
 int main(int argc, char **argv)
 {
     if (argc <= 2)

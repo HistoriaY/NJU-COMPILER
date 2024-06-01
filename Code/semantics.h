@@ -59,9 +59,29 @@ typedef struct VarList_info_s
     node_t *VarList_node;
 } VarList_info_t;
 
+void init_basic_type_ptr();
+
+void init_built_in_func();
+
+void semantic_error_print(int error_type, int line, char *msg);
+
+char *next_anony_struct_name();
+
 type_ptr deal_StructSpecifier(node_t *node);
 
 type_ptr deal_Specifier(node_t *node);
+
+void deal_ExtDecList(node_t *node, type_ptr base_type);
+
+VarList_info_t deal_VarList(node_t *node, int prev_para_num);
+
+int deal_FunDec(node_t *node, type_ptr return_type, int is_definition);
+
+void deal_Stmt(node_t *node, type_ptr return_type);
+
+void deal_StmtList(node_t *node, type_ptr return_type);
+
+void deal_CompSt(node_t *node, type_ptr return_type);
 
 void deal_ExtDef(node_t *node);
 
@@ -71,13 +91,15 @@ Dec_info_t deal_Dec(node_t *node, type_ptr base_type);
 
 DecList_info_t deal_DecList(node_t *node, type_ptr base_type, int prev_dec_num);
 
-void deal_ExtDecList(node_t *node, type_ptr base_type);
-
 Def_info_t deal_Def(node_t *node);
 
 DefList_info_t deal_DefList(node_t *node, int prev_def_num);
 
 type_ptr deal_Exp(node_t *node);
+
+void deal_all_ExtDef(node_t *node);
+
+void find_undefined_func();
 
 void semantic_analysis(node_t *root);
 

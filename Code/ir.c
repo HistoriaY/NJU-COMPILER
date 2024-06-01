@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include "ir.h"
 #include "typedef.h"
+#include "semantics.h"
 
 // gen single line code
 code_t *gen_ir_label_code(const char *const label)
@@ -186,9 +187,6 @@ code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
     free(t1);
     return merge_code(3, code1, code2, gen_ir_jmp_code(label_false));
 }
-
-type_ptr deal_Exp(node_t *node);
-code_t *trans_Exp(node_t *node, char *place);
 
 code_t *trans_array_access(node_t *node, char *base, type_ptr *base_type)
 {
