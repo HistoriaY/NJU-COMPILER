@@ -50,7 +50,7 @@ void insert_symbol(symbol_t *symbol_ptr)
 
 int same_type(type_ptr t1, type_ptr t2)
 {
-    if (t1 == NULL || t2 == NULL)
+    if (t1 == NULL || t2 == NULL || t1->kind == type_sys_ERROR || t2->kind == type_sys_ERROR)
         return 0;
     if (t1->kind != t2->kind)
         return 0;
