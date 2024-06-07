@@ -404,7 +404,6 @@ ir_code_t *trans_Exp(node_t *node, char *place)
         {
             // Exp: ID LP Args RP
             char **arg_list = malloc(sizeof(char *) * function->type->u.function.para_num);
-            // TODO: free arg_list and arg_list[i]
             ir_code_t *code1 = trans_Args(node->children[2], arg_list, 0);
             if (strcmp(function->name, "write") == 0)
             {
@@ -412,6 +411,10 @@ ir_code_t *trans_Exp(node_t *node, char *place)
                 code2->code_str = createFormattedString("WRITE %s", arg_list[0]);
                 ir_code_t *code3 = new_empty_code();
                 code3->code_str = createFormattedString("%s := #0", place);
+                // free arg_list and arg_list[i]
+                for (int i = 0; i < function->type->u.function.para_num; ++i)
+                    free(arg_list[i]);
+                free(arg_list);
                 return merge_code(3, code1, code2, code3);
             }
             else
@@ -425,6 +428,10 @@ ir_code_t *trans_Exp(node_t *node, char *place)
                 }
                 ir_code_t *code3 = new_empty_code();
                 code3->code_str = createFormattedString("%s := CALL %s", place, function->name);
+                // free arg_list and arg_list[i]
+                for (int i = 0; i < function->type->u.function.para_num; ++i)
+                    free(arg_list[i]);
+                free(arg_list);
                 return merge_code(3, code1, code2, code3);
             }
         }
