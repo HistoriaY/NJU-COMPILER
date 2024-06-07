@@ -9,6 +9,28 @@ type_ptr type_ptr_int, type_ptr_float;
 // global error type ptr
 type_ptr type_ptr_error;
 
+void free_DecList_info(DecList_info_t *info)
+{
+    free(info->dec_infos);
+}
+
+void free_Def_info(Def_info_t *info)
+{
+    free_DecList_info(&info->dec_list_info);
+}
+
+void free_DefList_info(DefList_info_t *info)
+{
+    for (int i = 0; i < info->def_info_num; ++i)
+        free_Def_info(&info->def_infos[i]);
+    free(info->def_infos);
+}
+
+void free_VarList_info(VarList_info_t *info)
+{
+    free(info->var_dec_infos);
+}
+
 void init_basic_type_ptr()
 {
     type_ptr_int = malloc(sizeof(struct type_s));
@@ -170,7 +192,8 @@ type_ptr deal_StructSpecifier(node_t *node)
                     prev_field = curr_field;
                 }
             }
-            // TODO: free heap space malloced in DefList_info_t
+            // free heap space malloced in DefList_info_t
+            free_DefList_info(&def_list_info);
         }
         new_type->u.structure.struct_name = new_s->name;
         new_type->u.structure.struct_field = first_field;
@@ -358,6 +381,8 @@ int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
         new_func_sym->scope = global_scope;
         insert_symbol(new_func_sym);
     }
+    // free heap space malloced in VarList_info_t
+    free_VarList_info(&vli);
     return 0;
 }
 
@@ -446,7 +471,8 @@ void deal_CompSt(node_t *node, type_ptr return_type)
                 }
             }
         }
-        // TODO: free heap space malloced in DefList_info_t
+        // free heap space malloced in DefList_info_t
+        free_DefList_info(&def_list_info);
     }
     if (node->children[2] != NULL)
         deal_StmtList(node->children[2], return_type);

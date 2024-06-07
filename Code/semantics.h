@@ -11,6 +11,8 @@ typedef struct VarDec_info_s
     node_t *VarDec_node;
 } VarDec_info_t;
 
+// void free_VarDec_info(VarDec_info_t *info);
+
 typedef struct Dec_info_s
 {
     // Dec: VarDec | VarDec ASSIGNOP Exp
@@ -18,6 +20,8 @@ typedef struct Dec_info_s
     node_t *assign_Exp;
     node_t *Dec_node;
 } Dec_info_t;
+
+// void free_Dec_info(Dec_info_t *info);
 
 typedef struct DecList_info_s
 {
@@ -27,6 +31,8 @@ typedef struct DecList_info_s
     node_t *DecList_node;
 } DecList_info_t;
 
+void free_DecList_info(DecList_info_t *info);
+
 typedef struct Def_info_s
 {
     // Def: Specifier DecList SEMI
@@ -35,6 +41,8 @@ typedef struct Def_info_s
     node_t *Def_node;
 } Def_info_t;
 
+void free_Def_info(Def_info_t *info);
+
 typedef struct DefList_info_s
 {
     // DefList: Def DefList | empty
@@ -42,6 +50,8 @@ typedef struct DefList_info_s
     Def_info_t *def_infos;
     node_t *DefList_node;
 } DefList_info_t;
+
+void free_DefList_info(DefList_info_t *info);
 
 // typedef struct ExtDecList_info_s
 // {
@@ -58,6 +68,8 @@ typedef struct VarList_info_s
     VarDec_info_t *var_dec_infos;
     node_t *VarList_node;
 } VarList_info_t;
+
+void free_VarList_info(VarList_info_t *info);
 
 void init_basic_type_ptr();
 
