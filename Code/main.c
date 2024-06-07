@@ -49,7 +49,7 @@ void print_node_info(node_t *node, int indent)
     }
 }
 
-void gen_ir_codes(char *output)
+void output_ir_codes(char *output)
 {
     FILE *file = fopen(output, "w");
     if (file == NULL)
@@ -57,7 +57,7 @@ void gen_ir_codes(char *output)
         fprintf(stderr, "can't open ir output file: %s\n", output);
         return;
     }
-    code_t *curr = ir_start;
+    ir_code_t *curr = ir_start;
     if (curr)
     {
         // if (curr->code_str)
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     if (!error)
     {
         trans_Program(root);
-        gen_ir_codes(argv[2]);
+        output_ir_codes(argv[2]);
     }
     fclose(f);
     return 0;

@@ -7,21 +7,21 @@
 #include "semantics.h"
 
 // gen single line code
-code_t *gen_ir_label_code(const char *const label)
+ir_code_t *gen_ir_label_code(const char *const label)
 {
-    code_t *code = new_empty_code();
+    ir_code_t *code = new_empty_code();
     code->code_str = createFormattedString("LABEL %s :", label);
     return code;
 }
-code_t *gen_ir_jmp_code(const char *const label)
+ir_code_t *gen_ir_jmp_code(const char *const label)
 {
-    code_t *code = new_empty_code();
+    ir_code_t *code = new_empty_code();
     code->code_str = createFormattedString("GOTO %s", label);
     return code;
 }
 
 // ir code entrance
-code_t *ir_start = NULL;
+ir_code_t *ir_start = NULL;
 
 // so magic, so amazing, just use it
 char *createFormattedString(const char *format, ...)
@@ -46,23 +46,23 @@ char *createFormattedString(const char *format, ...)
     return str;                               // 返回动态分配的字符串
 }
 
-code_t *new_empty_code()
+ir_code_t *new_empty_code()
 {
-    code_t *temp = malloc(sizeof(code_t));
+    ir_code_t *temp = malloc(sizeof(ir_code_t));
     temp->code_str = NULL;
     temp->next = temp;
     temp->prev = temp;
     return temp;
 }
 
-code_t *merge_code(int count, ...)
+ir_code_t *merge_code(int count, ...)
 {
     va_list args;
     va_start(args, count);
-    code_t *head = NULL;
+    ir_code_t *head = NULL;
     for (int i = 0; i < count; ++i)
     {
-        code_t *code = va_arg(args, code_t *);
+        ir_code_t *code = va_arg(args, ir_code_t *);
         if (code == NULL)
             continue;
         if (head == NULL)
@@ -72,7 +72,7 @@ code_t *merge_code(int count, ...)
         }
         head->prev->next = code;
         code->prev->next = head;
-        code_t *temp = code->prev;
+        ir_code_t *temp = code->prev;
         code->prev = head->prev;
         head->prev = temp;
     }
@@ -137,7 +137,7 @@ char *get_VarDec_name(node_t *node)
     return get_VarDec_name(node->children[0]);
 }
 
-code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
+ir_code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
 {
     // case Exp of
     // Exp: Exp RELOP Exp
@@ -145,10 +145,10 @@ code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
     {
         char *t1 = new_temp();
         char *t2 = new_temp();
-        code_t *code1 = trans_Exp(node->children[0], t1);
-        code_t *code2 = trans_Exp(node->children[2], t2);
+        ir_code_t *code1 = trans_Exp(node->children[0], t1);
+        ir_code_t *code2 = trans_Exp(node->children[2], t2);
         char *op = get_relop(node->children[1]);
-        code_t *code3 = new_empty_code();
+        ir_code_t *code3 = new_empty_code();
         code3->code_str = createFormattedString("IF %s %s %s GOTO %s", t1, op, t2, label_true);
         free(t1);
         free(t2);
@@ -163,9 +163,9 @@ code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
     if (node->children[1] && strcmp(node->children[1]->name, "AND") == 0)
     {
         char *label1 = new_label();
-        code_t *code1 = trans_Cond(node->children[0], label1, label_false);
-        code_t *code2 = gen_ir_label_code(label1);
-        code_t *code3 = trans_Cond(node->children[2], label_true, label_false);
+        ir_code_t *code1 = trans_Cond(node->children[0], label1, label_false);
+        ir_code_t *code2 = gen_ir_label_code(label1);
+        ir_code_t *code3 = trans_Cond(node->children[2], label_true, label_false);
         free(label1);
         return merge_code(3, code1, code2, code3);
     }
@@ -173,29 +173,29 @@ code_t *trans_Cond(node_t *node, char *label_true, char *label_false)
     if (node->children[1] && strcmp(node->children[1]->name, "OR") == 0)
     {
         char *label1 = new_label();
-        code_t *code1 = trans_Cond(node->children[0], label_true, label1);
-        code_t *code2 = gen_ir_label_code(label1);
-        code_t *code3 = trans_Cond(node->children[2], label_true, label_false);
+        ir_code_t *code1 = trans_Cond(node->children[0], label_true, label1);
+        ir_code_t *code2 = gen_ir_label_code(label1);
+        ir_code_t *code3 = trans_Cond(node->children[2], label_true, label_false);
         free(label1);
         return merge_code(3, code1, code2, code3);
     }
     // other cases
     char *t1 = new_temp();
-    code_t *code1 = trans_Exp(node, t1);
-    code_t *code2 = new_empty_code();
+    ir_code_t *code1 = trans_Exp(node, t1);
+    ir_code_t *code2 = new_empty_code();
     code2->code_str = createFormattedString("IF %s %s %s GOTO %s", t1, "!=", "#0", label_true);
     free(t1);
     return merge_code(3, code1, code2, gen_ir_jmp_code(label_false));
 }
 
-code_t *trans_array_access(node_t *node, char *base, type_ptr *base_type)
+ir_code_t *trans_array_access(node_t *node, char *base, type_ptr *base_type)
 {
     // Exp: ID
     if (strcmp(node->children[0]->name, "ID") == 0)
     {
         char *array_name = node->children[0]->tev.id;
         symbol_t *s = look_up_symbol(array_name);
-        code_t *code = new_empty_code();
+        ir_code_t *code = new_empty_code();
         code->code_str = createFormattedString("%s := %s", base, array_name);
         *base_type = s->type;
         return code;
@@ -206,16 +206,16 @@ code_t *trans_array_access(node_t *node, char *base, type_ptr *base_type)
         // _base _base_type
         char *_base = new_temp();
         type_ptr _base_type;
-        code_t *code1 = trans_array_access(node->children[0], _base, &_base_type);
+        ir_code_t *code1 = trans_array_access(node->children[0], _base, &_base_type);
         // bias = index * elem_size
         char *index = new_temp();
-        code_t *code2 = trans_Exp(node->children[2], index);
+        ir_code_t *code2 = trans_Exp(node->children[2], index);
         char *bias = new_temp();
-        code_t *code3 = new_empty_code();
+        ir_code_t *code3 = new_empty_code();
         code3->code_str = createFormattedString("%s := %s * #%d", bias, index, _base_type->u.array.elem_type->size);
         free(index);
         // base = _base + bias
-        code_t *code4 = new_empty_code();
+        ir_code_t *code4 = new_empty_code();
         code4->code_str = createFormattedString("%s := %s + %s", base, _base, bias);
         free(_base);
         free(bias);
@@ -227,25 +227,25 @@ code_t *trans_array_access(node_t *node, char *base, type_ptr *base_type)
         exit(1);
 }
 
-code_t *trans_array_assign(char *base1, char *base2, type_ptr base_type1, type_ptr base_type2)
+ir_code_t *trans_array_assign(char *base1, char *base2, type_ptr base_type1, type_ptr base_type2)
 {
     // base1 = base2
     // num of assign basic elem
     int num = (base_type1->size <= base_type2->size) ? (base_type1->size >> 2) : (base_type2->size >> 2);
-    code_t *code = NULL;
+    ir_code_t *code = NULL;
     for (int i = 0; i < num; ++i)
     {
         // addr1
         char *addr1 = new_temp();
-        code_t *code1 = new_empty_code();
+        ir_code_t *code1 = new_empty_code();
         code1->code_str = createFormattedString("%s := %s + #%d", addr1, base1, i * 4);
         // addr2
         char *addr2 = new_temp();
-        code_t *code2 = new_empty_code();
+        ir_code_t *code2 = new_empty_code();
         code2->code_str = createFormattedString("%s := %s + #%d", addr2, base2, i * 4);
         // *addr1 = *addr2
         char *t = new_temp();
-        code_t *code3 = new_empty_code(), *code4 = new_empty_code();
+        ir_code_t *code3 = new_empty_code(), *code4 = new_empty_code();
         code3->code_str = createFormattedString("%s := *%s", t, addr2);
         code4->code_str = createFormattedString("*%s := %s", addr1, t);
         free(addr1);
@@ -256,7 +256,7 @@ code_t *trans_array_assign(char *base1, char *base2, type_ptr base_type1, type_p
     return code;
 }
 
-code_t *trans_Exp(node_t *node, char *place)
+ir_code_t *trans_Exp(node_t *node, char *place)
 {
     // case Exp of
     node_t *first_child = node->children[0];
@@ -264,19 +264,19 @@ code_t *trans_Exp(node_t *node, char *place)
     // Exp: ID | INT | FLOAT
     if (strcmp(first_child->name, "ID") == 0 && second_child == NULL)
     {
-        code_t *code = new_empty_code();
+        ir_code_t *code = new_empty_code();
         code->code_str = createFormattedString("%s := %s", place, node->children[0]->tev.id);
         return code;
     }
     if (strcmp(first_child->name, "INT") == 0)
     {
-        code_t *code = new_empty_code();
+        ir_code_t *code = new_empty_code();
         code->code_str = createFormattedString("%s := #%d", place, node->children[0]->tev.int_val);
         return code;
     }
     if (strcmp(first_child->name, "FLOAT") == 0)
     {
-        code_t *code = new_empty_code();
+        ir_code_t *code = new_empty_code();
         code->code_str = createFormattedString("%s := #%f", place, node->children[0]->tev.float_val);
         return code;
     }
@@ -290,8 +290,8 @@ code_t *trans_Exp(node_t *node, char *place)
             if (strcmp(first_child->children[0]->name, "ID") == 0)
             {
                 char *t1 = new_temp();
-                code_t *code1 = trans_Exp(node->children[2], t1);
-                code_t *code2 = new_empty_code();
+                ir_code_t *code1 = trans_Exp(node->children[2], t1);
+                ir_code_t *code2 = new_empty_code();
                 code2->code_str = createFormattedString("%s := %s\n%s := %s", first_child->children[0]->tev.id, t1, place, first_child->children[0]->tev.id);
                 free(t1);
                 return merge_code(2, code1, code2);
@@ -305,14 +305,14 @@ code_t *trans_Exp(node_t *node, char *place)
                 // addr
                 char *addr = new_temp();
                 type_ptr useless;
-                code_t *code1 = trans_array_access(first_child, addr, &useless);
+                ir_code_t *code1 = trans_array_access(first_child, addr, &useless);
                 // *addr = t
                 char *t = new_temp();
-                code_t *code2 = trans_Exp(node->children[2], t);
-                code_t *code3 = new_empty_code();
+                ir_code_t *code2 = trans_Exp(node->children[2], t);
+                ir_code_t *code3 = new_empty_code();
                 code3->code_str = createFormattedString("*%s := %s", addr, t);
                 // place = *addr
-                code_t *code4 = new_empty_code();
+                ir_code_t *code4 = new_empty_code();
                 code4->code_str = createFormattedString("%s := *%s", place, addr);
                 free(addr);
                 free(t);
@@ -323,9 +323,9 @@ code_t *trans_Exp(node_t *node, char *place)
         {
             char *base1 = new_temp(), *base2 = new_temp();
             type_ptr base_type1, base_type2;
-            code_t *code1 = trans_array_access(first_child, base1, &base_type1);
-            code_t *code2 = trans_array_access(node->children[2], base2, &base_type2);
-            code_t *code3 = trans_array_assign(base1, base2, base_type1, base_type2);
+            ir_code_t *code1 = trans_array_access(first_child, base1, &base_type1);
+            ir_code_t *code2 = trans_array_access(node->children[2], base2, &base_type2);
+            ir_code_t *code3 = trans_array_assign(base1, base2, base_type1, base_type2);
             free(base1);
             free(base2);
             return merge_code(3, code1, code2, code3);
@@ -339,13 +339,13 @@ code_t *trans_Exp(node_t *node, char *place)
     {
         char *label1 = new_label();
         char *label2 = new_label();
-        code_t *code0 = new_empty_code();
+        ir_code_t *code0 = new_empty_code();
         code0->code_str = createFormattedString("%s := #0", place);
-        code_t *code1 = trans_Cond(node, label1, label2);
-        code_t *code2 = gen_ir_label_code(label1);
-        code_t *code3 = new_empty_code();
+        ir_code_t *code1 = trans_Cond(node, label1, label2);
+        ir_code_t *code2 = gen_ir_label_code(label1);
+        ir_code_t *code3 = new_empty_code();
         code3->code_str = createFormattedString("%s := #1", place);
-        code_t *code4 = gen_ir_label_code(label2);
+        ir_code_t *code4 = gen_ir_label_code(label2);
         free(label1);
         free(label2);
         return merge_code(5, code0, code1, code2, code3, code4);
@@ -356,9 +356,9 @@ code_t *trans_Exp(node_t *node, char *place)
     {
         char *t1 = new_temp();
         char *t2 = new_temp();
-        code_t *code1 = trans_Exp(first_child, t1);
-        code_t *code2 = trans_Exp(node->children[2], t2);
-        code_t *code3 = new_empty_code();
+        ir_code_t *code1 = trans_Exp(first_child, t1);
+        ir_code_t *code2 = trans_Exp(node->children[2], t2);
+        ir_code_t *code3 = new_empty_code();
         if (strcmp(second_child->name, "PLUS") == 0)
             code3->code_str = createFormattedString("%s := %s + %s", place, t1, t2);
         else if (strcmp(second_child->name, "MINUS") == 0)
@@ -375,8 +375,8 @@ code_t *trans_Exp(node_t *node, char *place)
     if (strcmp(first_child->name, "MINUS") == 0)
     {
         char *t1 = new_temp();
-        code_t *code1 = trans_Exp(second_child, t1);
-        code_t *code2 = new_empty_code();
+        ir_code_t *code1 = trans_Exp(second_child, t1);
+        ir_code_t *code2 = new_empty_code();
         code2->code_str = createFormattedString("%s := #0 - %s", place, t1);
         free(t1);
         return merge_code(2, code1, code2);
@@ -393,7 +393,7 @@ code_t *trans_Exp(node_t *node, char *place)
         if (node->children[3] == NULL)
         {
             // Exp: ID LP RP
-            code_t *code = new_empty_code();
+            ir_code_t *code = new_empty_code();
             if (strcmp(function->name, "read") == 0)
                 code->code_str = createFormattedString("READ %s", place);
             else
@@ -405,25 +405,25 @@ code_t *trans_Exp(node_t *node, char *place)
             // Exp: ID LP Args RP
             char **arg_list = malloc(sizeof(char *) * function->type->u.function.para_num);
             // TODO: free arg_list and arg_list[i]
-            code_t *code1 = trans_Args(node->children[2], arg_list, 0);
+            ir_code_t *code1 = trans_Args(node->children[2], arg_list, 0);
             if (strcmp(function->name, "write") == 0)
             {
-                code_t *code2 = new_empty_code();
+                ir_code_t *code2 = new_empty_code();
                 code2->code_str = createFormattedString("WRITE %s", arg_list[0]);
-                code_t *code3 = new_empty_code();
+                ir_code_t *code3 = new_empty_code();
                 code3->code_str = createFormattedString("%s := #0", place);
                 return merge_code(3, code1, code2, code3);
             }
             else
             {
-                code_t *code2 = NULL;
+                ir_code_t *code2 = NULL;
                 for (int i = function->type->u.function.para_num - 1; i >= 0; --i)
                 {
-                    code_t *code3 = new_empty_code();
+                    ir_code_t *code3 = new_empty_code();
                     code3->code_str = createFormattedString("ARG %s", arg_list[i]);
                     code2 = merge_code(2, code2, code3);
                 }
-                code_t *code3 = new_empty_code();
+                ir_code_t *code3 = new_empty_code();
                 code3->code_str = createFormattedString("%s := CALL %s", place, function->name);
                 return merge_code(3, code1, code2, code3);
             }
@@ -432,7 +432,7 @@ code_t *trans_Exp(node_t *node, char *place)
     // Exp: Exp DOT ID
     if (strcmp(second_child->name, "DOT") == 0)
     {
-        code_t *code = new_empty_code();
+        ir_code_t *code = new_empty_code();
         code->code_str = createFormattedString("TODO: Exp: Exp DOT ID");
         return code;
     }
@@ -442,21 +442,21 @@ code_t *trans_Exp(node_t *node, char *place)
         // addr
         char *addr = new_temp();
         type_ptr useless;
-        code_t *code1 = trans_array_access(node, addr, &useless);
+        ir_code_t *code1 = trans_array_access(node, addr, &useless);
         // place = *addr
-        code_t *code2 = new_empty_code();
+        ir_code_t *code2 = new_empty_code();
         code2->code_str = createFormattedString("%s := *%s", place, addr);
         free(addr);
         return merge_code(2, code1, code2);
     }
 }
 
-code_t *trans_Dec(node_t *node)
+ir_code_t *trans_Dec(node_t *node)
 {
     // Dec: VarDec | VarDec ASSIGNOP Exp
     char *name = get_VarDec_name(node->children[0]);
     symbol_t *s = look_up_symbol(name);
-    code_t *code1 = NULL, *code2 = NULL;
+    ir_code_t *code1 = NULL, *code2 = NULL;
     // DEC size
     if (s->type->kind == type_sys_INT || s->type->kind == type_sys_FLOAT)
         ;
@@ -465,7 +465,7 @@ code_t *trans_Dec(node_t *node)
         code1 = new_empty_code();
         char *t = new_temp();
         code1->code_str = createFormattedString("DEC %s %d", t, s->type->size);
-        code_t *retrieve_addr_code = new_empty_code();
+        ir_code_t *retrieve_addr_code = new_empty_code();
         retrieve_addr_code->code_str = createFormattedString("%s := &%s", s->name, t);
         free(t);
         code1 = merge_code(2, code1, retrieve_addr_code);
@@ -482,7 +482,7 @@ code_t *trans_Dec(node_t *node)
             char *base2 = new_temp();
             type_ptr base_type2;
             code2 = trans_array_access(node->children[2], base2, &base_type2);
-            code_t *code3 = trans_array_assign(name, base2, s->type, base_type2);
+            ir_code_t *code3 = trans_array_assign(name, base2, s->type, base_type2);
             free(base2);
             code2 = merge_code(2, code2, code3);
         }
@@ -492,43 +492,43 @@ code_t *trans_Dec(node_t *node)
     return merge_code(2, code1, code2);
 }
 
-code_t *trans_DecList(node_t *node)
+ir_code_t *trans_DecList(node_t *node)
 {
     // DecList: Dec | Dec COMMA DecList
-    code_t *code = trans_Dec(node->children[0]);
+    ir_code_t *code = trans_Dec(node->children[0]);
     if (node->children[2])
         code = merge_code(2, code, trans_DecList(node->children[2]));
     return code;
 }
 
-code_t *trans_Def(node_t *node)
+ir_code_t *trans_Def(node_t *node)
 {
     // Def: Specifier DecList SEMI
     return trans_DecList(node->children[1]);
 }
 
-code_t *trans_DefList(node_t *node)
+ir_code_t *trans_DefList(node_t *node)
 {
     // DefList: Def DefList | empty
-    code_t *code = trans_Def(node->children[0]);
+    ir_code_t *code = trans_Def(node->children[0]);
     if (node->children[1] != NULL)
         code = merge_code(2, code, trans_DefList(node->children[1]));
     return code;
 }
 
-code_t *trans_StmtList(node_t *node)
+ir_code_t *trans_StmtList(node_t *node)
 {
     // StmtList: Stmt StmtList | empty
-    code_t *code = trans_Stmt(node->children[0]);
+    ir_code_t *code = trans_Stmt(node->children[0]);
     if (node->children[1] != NULL)
         code = merge_code(2, code, trans_StmtList(node->children[1]));
     return code;
 }
 
-code_t *trans_CompSt(node_t *node)
+ir_code_t *trans_CompSt(node_t *node)
 {
     // CompSt: LC DefList StmtList RC
-    code_t *code = NULL;
+    ir_code_t *code = NULL;
     if (node->children[1] != NULL)
         code = trans_DefList(node->children[1]);
     if (node->children[2] != NULL)
@@ -536,7 +536,7 @@ code_t *trans_CompSt(node_t *node)
     return code;
 }
 
-code_t *trans_Stmt(node_t *node)
+ir_code_t *trans_Stmt(node_t *node)
 {
     // case Stmt of
     node_t *first_child = node->children[0];
@@ -545,7 +545,7 @@ code_t *trans_Stmt(node_t *node)
     {
         // return trans_Exp(first_child, NULL);
         char *t1 = new_temp();
-        code_t *code = trans_Exp(first_child, t1);
+        ir_code_t *code = trans_Exp(first_child, t1);
         free(t1);
         return code;
     }
@@ -558,8 +558,8 @@ code_t *trans_Stmt(node_t *node)
     if (strcmp(first_child->name, "RETURN") == 0)
     {
         char *t1 = new_temp();
-        code_t *code1 = trans_Exp(node->children[1], t1);
-        code_t *code2 = new_empty_code();
+        ir_code_t *code1 = trans_Exp(node->children[1], t1);
+        ir_code_t *code2 = new_empty_code();
         code2->code_str = createFormattedString("RETURN %s", t1);
         free(t1);
         return merge_code(2, code1, code2);
@@ -568,12 +568,12 @@ code_t *trans_Stmt(node_t *node)
     if (strcmp(first_child->name, "WHILE") == 0)
     {
         char *label1 = new_label(), *label2 = new_label(), *label3 = new_label();
-        code_t *code1 = gen_ir_label_code(label1);
-        code_t *code2 = trans_Cond(node->children[2], label2, label3);
-        code_t *code3 = gen_ir_label_code(label2);
-        code_t *code4 = trans_Stmt(node->children[4]);
-        code_t *code5 = gen_ir_jmp_code(label1);
-        code_t *code6 = gen_ir_label_code(label3);
+        ir_code_t *code1 = gen_ir_label_code(label1);
+        ir_code_t *code2 = trans_Cond(node->children[2], label2, label3);
+        ir_code_t *code3 = gen_ir_label_code(label2);
+        ir_code_t *code4 = trans_Stmt(node->children[4]);
+        ir_code_t *code5 = gen_ir_jmp_code(label1);
+        ir_code_t *code6 = gen_ir_label_code(label3);
         free(label1);
         free(label2);
         free(label3);
@@ -586,10 +586,10 @@ code_t *trans_Stmt(node_t *node)
         if (node->children[5] == NULL)
         {
             char *label1 = new_label(), *label2 = new_label();
-            code_t *code1 = trans_Cond(node->children[2], label1, label2);
-            code_t *code2 = gen_ir_label_code(label1);
-            code_t *code3 = trans_Stmt(node->children[4]);
-            code_t *code4 = gen_ir_label_code(label2);
+            ir_code_t *code1 = trans_Cond(node->children[2], label1, label2);
+            ir_code_t *code2 = gen_ir_label_code(label1);
+            ir_code_t *code3 = trans_Stmt(node->children[4]);
+            ir_code_t *code4 = gen_ir_label_code(label2);
             free(label1);
             free(label2);
             return merge_code(4, code1, code2, code3, code4);
@@ -597,13 +597,13 @@ code_t *trans_Stmt(node_t *node)
         else
         {
             char *label1 = new_label(), *label2 = new_label(), *label3 = new_label();
-            code_t *code1 = trans_Cond(node->children[2], label1, label2);
-            code_t *code2 = gen_ir_label_code(label1);
-            code_t *code3 = trans_Stmt(node->children[4]);
-            code_t *code4 = gen_ir_jmp_code(label3);
-            code_t *code5 = gen_ir_label_code(label2);
-            code_t *code6 = trans_Stmt(node->children[6]);
-            code_t *code7 = gen_ir_label_code(label3);
+            ir_code_t *code1 = trans_Cond(node->children[2], label1, label2);
+            ir_code_t *code2 = gen_ir_label_code(label1);
+            ir_code_t *code3 = trans_Stmt(node->children[4]);
+            ir_code_t *code4 = gen_ir_jmp_code(label3);
+            ir_code_t *code5 = gen_ir_label_code(label2);
+            ir_code_t *code6 = trans_Stmt(node->children[6]);
+            ir_code_t *code7 = gen_ir_label_code(label3);
             free(label1);
             free(label2);
             free(label3);
@@ -612,12 +612,12 @@ code_t *trans_Stmt(node_t *node)
     }
 }
 
-code_t *trans_Args(node_t *node, char **arg_list, int pos)
+ir_code_t *trans_Args(node_t *node, char **arg_list, int pos)
 {
     // case Args of
     // Args: Exp | Exp COMMA Args
     type_ptr t = deal_Exp(node->children[0]);
-    code_t *code1 = NULL, *code2 = NULL;
+    ir_code_t *code1 = NULL, *code2 = NULL;
     if (t->kind == type_sys_INT || t->kind == type_sys_FLOAT)
     {
         char *t1 = new_temp();
@@ -640,35 +640,35 @@ code_t *trans_Args(node_t *node, char **arg_list, int pos)
     return merge_code(2, code1, code2);
 }
 
-code_t *trans_ParamDec(node_t *node)
+ir_code_t *trans_ParamDec(node_t *node)
 {
     // ParamDec: Specifier VarDec
     char *name = get_VarDec_name(node->children[1]);
-    code_t *code = new_empty_code();
+    ir_code_t *code = new_empty_code();
     code->code_str = createFormattedString("PARAM %s", name);
     return code;
 }
 
-code_t *trans_VarList(node_t *node)
+ir_code_t *trans_VarList(node_t *node)
 {
     // VarList: ParamDec COMMA VarList | ParamDec
-    code_t *code1 = trans_ParamDec(node->children[0]);
+    ir_code_t *code1 = trans_ParamDec(node->children[0]);
     if (node->children[2])
         code1 = merge_code(2, code1, trans_VarList(node->children[2]));
     return code1;
 }
 
-code_t *trans_FunDec(node_t *node)
+ir_code_t *trans_FunDec(node_t *node)
 {
     // FunDec: ID LP VarList RP | ID LP RP
-    code_t *code1 = new_empty_code();
+    ir_code_t *code1 = new_empty_code();
     code1->code_str = createFormattedString("FUNCTION %s :", node->children[0]->tev.id);
     if (strcmp(node->children[2]->name, "VarList") == 0)
         code1 = merge_code(2, code1, trans_VarList(node->children[2]));
     return code1;
 }
 
-code_t *trans_ExtDef(node_t *node)
+ir_code_t *trans_ExtDef(node_t *node)
 {
     // no need to trans Specifier
     // ExtDef: Specifier SEMI (no this case)
@@ -678,8 +678,8 @@ code_t *trans_ExtDef(node_t *node)
     // ExtDef: Specifier FunDec CompSt (only this case) | Specifier FunDec SEMI (no this case)
     else if (strcmp(node->children[1]->name, "FunDec") == 0)
     {
-        code_t *code1 = trans_FunDec(node->children[1]);
-        code_t *code2 = trans_CompSt(node->children[2]);
+        ir_code_t *code1 = trans_FunDec(node->children[1]);
+        ir_code_t *code2 = trans_CompSt(node->children[2]);
         return merge_code(2, code1, code2);
     }
 }
@@ -688,7 +688,7 @@ void trans_all_ExtDef(node_t *node)
 {
     if (strcmp(node->name, "ExtDef") == 0)
     {
-        code_t *code = trans_ExtDef(node);
+        ir_code_t *code = trans_ExtDef(node);
         if (ir_start == NULL)
             ir_start = code;
         else
