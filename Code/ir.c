@@ -718,11 +718,14 @@ void output_ir_codes(char *ir_file)
     if (file == NULL)
     {
         fprintf(stderr, "can't open ir file: %s\n", ir_file);
-        return;
+        exit(1);
     }
     ir_code_t *curr = ir_start;
     if (!curr)
+    {
+        fclose(file);
         return;
+    }
     do
     {
         fprintf(file, "%s\n", curr->code_str);
