@@ -707,7 +707,7 @@ void trans_all_ExtDef(node_t *node)
             trans_all_ExtDef(node->children[i]);
 }
 
-void trans_Program(node_t *root)
+void trans_Program2ir(node_t *root)
 {
     trans_all_ExtDef(root);
 }

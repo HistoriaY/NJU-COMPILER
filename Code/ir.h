@@ -62,6 +62,6 @@ ir_code_t *trans_ExtDef(node_t *node);
 
 void trans_all_ExtDef(node_t *node);
 
-void trans_Program(node_t *root);
+void trans_Program2ir(node_t *root);
 
 #endif

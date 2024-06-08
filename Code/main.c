@@ -58,18 +58,13 @@ void output_ir_codes(char *output)
         return;
     }
     ir_code_t *curr = ir_start;
-    if (curr)
+    if (!curr)
+        return;
+    do
     {
-        // if (curr->code_str)
         fprintf(file, "%s\n", curr->code_str);
         curr = curr->next;
-        while (curr != ir_start)
-        {
-            // if (curr->code_str)
-            fprintf(file, "%s\n", curr->code_str);
-            curr = curr->next;
-        }
-    }
+    } while (curr != ir_start);
     fclose(file);
 }
 
@@ -95,7 +90,7 @@ int main(int argc, char **argv)
     }
     if (!error)
     {
-        trans_Program(root);
+        trans_Program2ir(root);
         output_ir_codes(argv[2]);
     }
     fclose(f);
