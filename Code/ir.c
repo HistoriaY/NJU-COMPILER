@@ -292,9 +292,11 @@ ir_code_t *trans_Exp(node_t *node, char *place)
                 char *t1 = new_temp();
                 ir_code_t *code1 = trans_Exp(node->children[2], t1);
                 ir_code_t *code2 = new_empty_code();
-                code2->code_str = createFormattedString("%s := %s\n%s := %s", first_child->children[0]->tev.id, t1, place, first_child->children[0]->tev.id);
+                code2->code_str = createFormattedString("%s := %s", first_child->children[0]->tev.id, t1);
+                ir_code_t *code3 = new_empty_code();
+                code3->code_str = createFormattedString("%s := %s", place, first_child->children[0]->tev.id);
                 free(t1);
-                return merge_code(2, code1, code2);
+                return merge_code(3, code1, code2, code3);
             }
             // Exp1 : Exp DOT ID
             else if (strcmp(first_child->children[1]->name, "DOT") == 0)
