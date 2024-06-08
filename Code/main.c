@@ -3,6 +3,7 @@
 #include "typedef.h"
 #include "semantics.h"
 #include "ir.h"
+#include "mips.h"
 
 static int error = 0;
 
@@ -72,7 +73,8 @@ int main(int argc, char **argv)
     if (!error)
     {
         trans_Program2ir(root);
-        output_ir_codes(argv[2]);
+        // output_ir_codes(argv[2]);
+        trans_ir2asm(argv[2]);
     }
     fclose(f);
     return 0;
