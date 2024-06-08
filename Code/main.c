@@ -49,25 +49,6 @@ void print_node_info(node_t *node, int indent)
     }
 }
 
-void output_ir_codes(char *output)
-{
-    FILE *file = fopen(output, "w");
-    if (file == NULL)
-    {
-        fprintf(stderr, "can't open ir output file: %s\n", output);
-        return;
-    }
-    ir_code_t *curr = ir_start;
-    if (!curr)
-        return;
-    do
-    {
-        fprintf(file, "%s\n", curr->code_str);
-        curr = curr->next;
-    } while (curr != ir_start);
-    fclose(file);
-}
-
 void yyrestart(FILE *input_file);
 int yyparse(void);
 

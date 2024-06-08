@@ -64,4 +64,6 @@ void trans_all_ExtDef(node_t *node);
 
 void trans_Program2ir(node_t *root);
 
+void output_ir_codes(char *ir_file);
+
 #endif

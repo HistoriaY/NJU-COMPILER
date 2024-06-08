@@ -711,3 +711,22 @@ void trans_Program2ir(node_t *root)
 {
     trans_all_ExtDef(root);
 }
+
+void output_ir_codes(char *ir_file)
+{
+    FILE *file = fopen(ir_file, "w");
+    if (file == NULL)
+    {
+        fprintf(stderr, "can't open ir file: %s\n", ir_file);
+        return;
+    }
+    ir_code_t *curr = ir_start;
+    if (!curr)
+        return;
+    do
+    {
+        fprintf(file, "%s\n", curr->code_str);
+        curr = curr->next;
+    } while (curr != ir_start);
+    fclose(file);
+}
