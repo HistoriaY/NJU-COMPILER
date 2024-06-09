@@ -814,14 +814,13 @@ void deal_all_ExtDef(node_t *node)
 
 void find_undefined_func()
 {
-    for (int i = 0; i < TABLE_SIZE; ++i)
+    for (int i = 0; i < HASH_TABLE_SIZE; ++i)
     {
-        list_head_t *h = &symbol_table[i];
-        list_node_t *p = h->next;
+        HashNode_t *p = symbol_table->buckets[i];
         while (p)
         {
-            if (p->symbol_ptr->type && p->symbol_ptr->type->kind == type_sys_FUNCTION && !p->symbol_ptr->type->u.function.is_defined)
-                semantic_error_print(18, p->symbol_ptr->type->u.function.first_declare_line, "func declared but not defined");
+            if (((symbol_t *)p->value)->type && ((symbol_t *)p->value)->type->kind == type_sys_FUNCTION && !((symbol_t *)p->value)->type->u.function.is_defined)
+                semantic_error_print(18, ((symbol_t *)p->value)->type->u.function.first_declare_line, "func declared but not defined");
             p = p->next;
         }
     }
@@ -829,6 +828,7 @@ void find_undefined_func()
 
 void semantic_analysis(node_t *root)
 {
+    init_symbol_table();
     init_basic_type_ptr();
     init_built_in_func();
     deal_all_ExtDef(root);

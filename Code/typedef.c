@@ -3,49 +3,40 @@
 #include <string.h>
 
 node_t *root;
-symbol_table_t symbol_table;
+HashTable_t *symbol_table;
 
-unsigned int hash(char *name)
+unsigned int str_hash(char *str)
 {
     unsigned int val = 0, i;
-    for (; *name; ++name)
+    for (; *str; ++str)
     {
-        val = (val << 2) + *name;
-        if (i = val & ~TABLE_SIZE)
-            val = (val ^ (i >> 12)) & TABLE_SIZE;
+        val = (val << 2) + *str;
+        if (i = val & ~HASH_TABLE_SIZE)
+            val = (val ^ (i >> 12)) & HASH_TABLE_SIZE;
     }
     return val;
 }
 
-void insert_list(list_head_t *head, list_node_t *node_ptr)
+int str_compare(char *str1, char *str2)
 {
-    node_ptr->next = head->next;
-    head->next = node_ptr;
+    return strcmp(str1, str2);
+}
+
+void init_symbol_table()
+{
+    symbol_table = hash_table_create(str_hash, str_compare);
 }
 
 symbol_t *look_up_symbol(char *name)
 {
-    unsigned int val = hash(name);
-    list_head_t *head = &symbol_table[val];
-    list_node_t *curr = head->next;
-    while (curr)
-    {
-        if (strcmp(curr->symbol_ptr->name, name) == 0)
-            return curr->symbol_ptr;
-        curr = curr->next;
-    }
-    return NULL;
+    return (symbol_t *)hash_table_search(symbol_table, name);
 }
 
 void insert_symbol(symbol_t *symbol_ptr)
 {
     if (look_up_symbol(symbol_ptr->name))
         return;
-    unsigned int val = hash(symbol_ptr->name);
-    list_node_t *new_node_ptr = malloc(sizeof(list_node_t));
-    new_node_ptr->next = NULL;
-    new_node_ptr->symbol_ptr = symbol_ptr;
-    insert_list(&symbol_table[val], new_node_ptr);
+    hash_table_insert(symbol_table, symbol_ptr->name, symbol_ptr);
 }
 
 int same_type(type_ptr t1, type_ptr t2)

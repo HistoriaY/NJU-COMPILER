@@ -1,5 +1,6 @@
 #ifndef TYPEDEF_H
 #define TYPEDEF_H
+#include "hash_table.h"
 
 // syntax tree
 typedef union token_extra_value
@@ -106,25 +107,11 @@ typedef struct symbol_s
     // } scope; // symbol scope
 } symbol_t;
 
-// list def
-typedef struct list_node_s
-{
-    struct list_node_s *next;
-    symbol_t *symbol_ptr;
-} list_node_t;
-
-typedef struct list_head_s
-{
-    list_node_t *next;
-} list_head_t;
-
-void insert_list(list_head_t *head, list_node_t *node_ptr);
-
 // symbol table
-#define TABLE_SIZE 0x3fff
-typedef list_head_t symbol_table_t[TABLE_SIZE];
-extern symbol_table_t symbol_table;
-unsigned int hash(char *name);
+extern HashTable_t *symbol_table;
+unsigned int str_hash(char *str);
+int str_compare(char *str1, char *str2);
+void init_symbol_table();
 symbol_t *look_up_symbol(char *name);
 void insert_symbol(symbol_t *symbol_ptr);
 
