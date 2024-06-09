@@ -98,12 +98,12 @@ typedef struct symbol_s
 {
     char *name;    // symbol name
     type_ptr type; // symbol type
-    enum
-    {
-        global_scope,
-        local_scope,
-        para_scope
-    } scope; // symbol scope
+    // enum
+    // {
+    //     global_scope,
+    //     local_scope,
+    //     para_scope
+    // } scope; // symbol scope
 } symbol_t;
 
 // list def

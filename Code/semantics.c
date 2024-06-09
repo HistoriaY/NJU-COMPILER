@@ -59,7 +59,7 @@ void init_built_in_func()
     read_func->type->u.function.para_num = 0;
     read_func->type->u.function.para_types = NULL;
     read_func->type->u.function.return_type = type_ptr_int;
-    read_func->scope = global_scope;
+    // read_func->scope = global_scope;
     read_func->type->size = 0;
     insert_symbol(read_func);
     symbol_t *write_func = malloc(sizeof(symbol_t));
@@ -74,7 +74,7 @@ void init_built_in_func()
     write_func->type->u.function.para_types = malloc(sizeof(type_ptr) * 1);
     write_func->type->u.function.para_types[0] = type_ptr_int;
     write_func->type->u.function.return_type = type_ptr_int;
-    write_func->scope = global_scope;
+    // write_func->scope = global_scope;
     write_func->type->size = 0;
     insert_symbol(write_func);
 }
@@ -183,7 +183,7 @@ type_ptr deal_StructSpecifier(node_t *node)
                     symbol_t *new_fs = malloc(sizeof(symbol_t));
                     new_fs->name = curr_field->name;
                     new_fs->type = curr_field->type;
-                    new_fs->scope = local_scope;
+                    // new_fs->scope = local_scope;
                     insert_symbol(new_fs);
                     if (first_field == NULL)
                         first_field = curr_field;
@@ -200,7 +200,7 @@ type_ptr deal_StructSpecifier(node_t *node)
         // symbol type
         new_s->type = new_type;
         // symbol scope
-        new_s->scope = global_scope;
+        // new_s->scope = global_scope;
         // register new struct symbol
         insert_symbol(new_s);
         return new_s->type;
@@ -239,7 +239,7 @@ void deal_ExtDecList(node_t *node, type_ptr base_type)
     symbol_t *new_s = malloc(sizeof(symbol_t));
     new_s->name = var_dec_info.id;
     new_s->type = var_dec_info.type;
-    new_s->scope = global_scope;
+    // new_s->scope = global_scope;
     insert_symbol(new_s);
     // recursive deal
     if (node->children[2] != NULL)
@@ -329,7 +329,7 @@ int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
                 symbol_t *new_para_sym = malloc(sizeof(symbol_t));
                 new_para_sym->name = vdi->id;
                 new_para_sym->type = vdi->type;
-                new_para_sym->scope = para_scope;
+                // new_para_sym->scope = para_scope;
                 insert_symbol(new_para_sym);
             }
         }
@@ -354,7 +354,7 @@ int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
                 symbol_t *new_para_sym = malloc(sizeof(symbol_t));
                 new_para_sym->name = vdi->id;
                 new_para_sym->type = vdi->type;
-                new_para_sym->scope = para_scope;
+                // new_para_sym->scope = para_scope;
                 insert_symbol(new_para_sym);
             }
         }
@@ -378,7 +378,7 @@ int deal_FunDec(node_t *node, type_ptr return_type, int is_definition)
         symbol_t *new_func_sym = malloc(sizeof(symbol_t));
         new_func_sym->name = func_name;
         new_func_sym->type = new_type;
-        new_func_sym->scope = global_scope;
+        // new_func_sym->scope = global_scope;
         insert_symbol(new_func_sym);
     }
     // free heap space malloced in VarList_info_t
@@ -466,7 +466,7 @@ void deal_CompSt(node_t *node, type_ptr return_type)
                     symbol_t *new_s = malloc(sizeof(symbol_t));
                     new_s->name = var_dec_info->id;
                     new_s->type = var_dec_info->type;
-                    new_s->scope = local_scope;
+                    // new_s->scope = local_scope;
                     insert_symbol(new_s);
                 }
             }
