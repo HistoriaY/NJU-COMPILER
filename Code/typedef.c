@@ -5,21 +5,22 @@
 node_t *root;
 HashTable_t *symbol_table;
 
-unsigned int str_hash(char *str)
+unsigned int str_hash(void *str)
 {
+    char *p = (char *)str;
     unsigned int val = 0, i;
-    for (; *str; ++str)
+    for (; *p; ++p)
     {
-        val = (val << 2) + *str;
-        if (i = val & ~HASH_TABLE_SIZE)
+        val = (val << 2) + *p;
+        if ((i = val) & ~HASH_TABLE_SIZE)
             val = (val ^ (i >> 12)) & HASH_TABLE_SIZE;
     }
     return val;
 }
 
-int str_compare(char *str1, char *str2)
+int str_compare(void *str1, void *str2)
 {
-    return strcmp(str1, str2);
+    return strcmp((char *)str1, (char *)str2);
 }
 
 void init_symbol_table()
