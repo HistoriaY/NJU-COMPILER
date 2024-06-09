@@ -17,12 +17,12 @@ typedef struct HashNode_s
 typedef struct HashTable_s
 {
     HashNode_t *buckets[HASH_TABLE_SIZE];
-    unsigned int (*hash_func)(void *key);
+    unsigned int (*key_hash)(void *key);
     int (*key_compare)(void *key1, void *key2);
 } HashTable_t;
 
 // init hash table
-HashTable_t *hash_table_create(unsigned int (*hash_func)(void *key), int (*key_compare)(void *key1, void *key2));
+HashTable_t *hash_table_create(unsigned int (*key_hash)(void *key), int (*key_compare)(void *key1, void *key2));
 
 // insert element
 void hash_table_insert(HashTable_t *table, void *key, void *value);
