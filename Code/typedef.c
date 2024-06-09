@@ -63,4 +63,5 @@ int same_type(type_ptr t1, type_ptr t2)
         // PASS
         return 0;
     }
+    exit(1);
 }

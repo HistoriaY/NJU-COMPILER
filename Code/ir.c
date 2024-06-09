@@ -458,6 +458,7 @@ ir_code_t *trans_Exp(node_t *node, char *place)
         free(addr);
         return merge_code(2, code1, code2);
     }
+    exit(1);
 }
 
 ir_code_t *trans_Dec(node_t *node)
@@ -619,6 +620,7 @@ ir_code_t *trans_Stmt(node_t *node)
             return merge_code(7, code1, code2, code3, code4, code5, code6, code7);
         }
     }
+    exit(1);
 }
 
 ir_code_t *trans_Args(node_t *node, char **arg_list, int pos)
@@ -691,6 +693,7 @@ ir_code_t *trans_ExtDef(node_t *node)
         ir_code_t *code2 = trans_CompSt(node->children[2]);
         return merge_code(2, code1, code2);
     }
+    exit(1);
 }
 
 void trans_all_ExtDef(node_t *node)

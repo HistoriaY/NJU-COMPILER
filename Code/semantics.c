@@ -798,6 +798,7 @@ type_ptr deal_Exp(node_t *node)
         }
         return t1->u.array.elem_type;
     }
+    exit(1);
 }
 
 void deal_all_ExtDef(node_t *node)
