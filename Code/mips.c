@@ -4,14 +4,62 @@
 #include <stdio.h>
 #include <string.h>
 
+static char *strdup(char *src)
+{
+    size_t len = strlen(src);
+    char *dst = (char *)malloc(len + 1);
+    strncpy(dst, src, len);
+    dst[len] = '\0';
+    return dst;
+}
+
+static const char start_asm[] =
+    ".data\n"
+    "_prompt: .asciiz \"Enter an integer:\"\n"
+    "_ret: .asciiz \"\\n\"\n"
+    ".globl main\n"
+    ".text\n"
+    "read:\n"
+    "li $v0, 4\n"
+    "la $a0, _prompt\n"
+    "syscall\n"
+    "li $v0, 5\n"
+    "syscall\n"
+    "jr $ra\n"
+    "write:\n"
+    "li $v0, 1\n"
+    "syscall\n"
+    "li $v0, 4\n"
+    "la $a0, _ret\n"
+    "syscall\n"
+    "move $v0, $0\n"
+    "jr $ra";
+
 // asm file
 static FILE *file;
 #define dump_asm(str) fprintf(file, "%s\n", str)
 #define dump_asm_and_free(str) \
     dump_asm(str);             \
     free(str)
-// $sp bias to $fp
-int sp_bias;
+// $sp bias to $fp in current frame
+static int sp_bias;
+addr_descriptor_t *push(char *var, int size)
+{
+    char *code = createFormattedString("addi $sp $sp -%d", size);
+    dump_asm_and_free(code);
+    sp_bias -= size;
+    addr_descriptor_t *ad = malloc(sizeof(addr_descriptor_t));
+    ad->reg = reg_null;
+    ad->bias = sp_bias;
+    insert_ad(strdup(var), ad);
+    return ad;
+}
+void pop(int size)
+{
+    char *code = createFormattedString("addi $sp $sp %d", size);
+    dump_asm_and_free(code);
+    sp_bias += size;
+}
 
 // address descriptor table
 HashTable_t *ad_table;
@@ -64,14 +112,7 @@ mips_reg_t reg_no(char *var)
     }
     addr_descriptor_t *ad = look_up_ad(var);
     if (ad == NULL)
-    {
-        ad = malloc(sizeof(addr_descriptor_t));
-        ad->reg = reg_null;
-        // malloc stack space for var
-        sp_bias -= 4;
-        ad->bias = sp_bias;
-        insert_ad(createFormattedString("%s", var), ad);
-    }
+        ad = push(var, 4);
     ad->reg = curr;
     curr = (curr + 1 - start) % (end - start + 1) + start;
     char *code = createFormattedString("lw %s , %d($fp)", reg_name[ad->reg], ad->bias);
@@ -134,150 +175,157 @@ void init_ir_pattern()
 #define pmatch_str(i) (str + pmatch[i].rm_so)
 #define sub_str(i) createFormattedString("%.*s", pmatch_len(i), pmatch_str(i))
 
+// LABEL (x) :
 void ir2asm_0(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // LABEL (x) :
-    char *x_str = sub_str(1);
-    char *code = createFormattedString("%s:", x_str);
+    char *x = sub_str(1);
+    char *code = createFormattedString("%s:", x);
     dump_asm_and_free(code);
-    free(x_str);
+    free(x);
 }
 
+static int next_para_no;
+// FUNCTION (f) :
 void ir2asm_1(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // FUNCTION (f) :
-    sp_bias = -4; // reset sp_bias
-    char *f_str = sub_str(1);
-    char *code = createFormattedString("%s:", f_str);
+    dump_asm("");
+    char *f = sub_str(1);
+    char *code = createFormattedString("%s:", f);
     dump_asm_and_free(code);
-    free(f_str);
+    free(f);
+    next_para_no = 1;
+    sp_bias = 0; // reset sp_bias
+    dump_asm("addi $sp, $sp, -4");
+    dump_asm("sw $fp, 0($sp)");
+    dump_asm("move $fp , $sp");
 }
 
+// (x) := (y)
 void ir2asm_2(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // (x) := (y)
-    char *x_str = sub_str(1);
-    char *y_str = sub_str(2);
-    if (y_str[0] == '#')
+    char *x = sub_str(1);
+    char *y = sub_str(2);
+    if (y[0] == '#')
     {
-        char *code = createFormattedString("li %s , %s", reg(x_str), y_str + 1);
+        char *code = createFormattedString("li %s , %s", reg(x), y + 1);
         dump_asm_and_free(code);
     }
     else
     {
-        char *code = createFormattedString("move %s , %s", reg(x_str), reg(y_str));
+        char *code = createFormattedString("move %s , %s", reg(x), reg(y));
         dump_asm_and_free(code);
     }
-    store(x_str);
-    free(x_str);
-    free(y_str);
+    store(x);
+    free(x);
+    free(y);
 }
 
+// (x) := (y) + (z)
 void ir2asm_3(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // (x) := (y) + (z)
-    char *x_str = sub_str(1), *y_str = sub_str(2), *z_str = sub_str(3);
-    if (z_str[0] == '#')
+    char *x = sub_str(1), *y = sub_str(2), *z = sub_str(3);
+    if (z[0] == '#')
     {
-        char *code = createFormattedString("addi %s , %s , %s", reg(x_str), reg(y_str), z_str + 1);
+        char *code = createFormattedString("addi %s , %s , %s", reg(x), reg(y), z + 1);
         dump_asm_and_free(code);
     }
     else
     {
-        char *code = createFormattedString("add %s , %s , %s", reg(x_str), reg(y_str), reg(z_str));
+        char *code = createFormattedString("add %s , %s , %s", reg(x), reg(y), reg(z));
         dump_asm_and_free(code);
     }
-    store(x_str);
-    free(x_str);
-    free(y_str);
-    free(z_str);
+    store(x);
+    free(x);
+    free(y);
+    free(z);
 }
 
+// (x) := (y) - (z)
 void ir2asm_4(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // (x) := (y) - (z)
-    char *x_str = sub_str(1), *y_str = sub_str(2), *z_str = sub_str(3);
-    if (z_str[0] == '#')
+    char *x = sub_str(1), *y = sub_str(2), *z = sub_str(3);
+    if (z[0] == '#')
     {
-        char *code = createFormattedString("addi %s , %s , -%s", reg(x_str), reg(y_str), z_str + 1);
+        char *code = createFormattedString("addi %s , %s , -%s", reg(x), reg(y), z + 1);
         dump_asm_and_free(code);
     }
     else
     {
-        char *code = createFormattedString("sub %s , %s , %s", reg(x_str), reg(y_str), reg(z_str));
+        char *code = createFormattedString("sub %s , %s , %s", reg(x), reg(y), reg(z));
         dump_asm_and_free(code);
     }
-    store(x_str);
-    free(x_str);
-    free(y_str);
-    free(z_str);
+    store(x);
+    free(x);
+    free(y);
+    free(z);
 }
 
+// (x) := (y) * (z)
 void ir2asm_5(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // (x) := (y) * (z)
-    char *x_str = sub_str(1), *y_str = sub_str(2), *z_str = sub_str(3);
-    char *code = createFormattedString("mul %s , %s , %s", reg(x_str), reg(y_str), reg(z_str));
+    char *x = sub_str(1), *y = sub_str(2), *z = sub_str(3);
+    char *code = createFormattedString("mul %s , %s , %s", reg(x), reg(y), reg(z));
     dump_asm_and_free(code);
-    store(x_str);
-    free(x_str);
-    free(y_str);
-    free(z_str);
+    store(x);
+    free(x);
+    free(y);
+    free(z);
 }
 
+// (x) := (y) / (z)
 void ir2asm_6(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // (x) := (y) / (z)
-    char *x_str = sub_str(1), *y_str = sub_str(2), *z_str = sub_str(3);
-    char *code = createFormattedString("div %s , %s , %s", reg(x_str), reg(y_str), reg(z_str));
+    char *x = sub_str(1), *y = sub_str(2), *z = sub_str(3);
+    char *code = createFormattedString("div %s , %s , %s", reg(x), reg(y), reg(z));
     dump_asm_and_free(code);
-    store(x_str);
-    free(x_str);
-    free(y_str);
-    free(z_str);
+    store(x);
+    free(x);
+    free(y);
+    free(z);
 }
 
+// (x) := &(y)
 void ir2asm_7(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // (x) := &(y)
-    char *x_str = sub_str(1), *y_str = sub_str(2);
-    char *code = createFormattedString("la %s , %d($fp)", reg(x_str), look_up_ad(y_str)->bias);
+    char *x = sub_str(1), *y = sub_str(2);
+    char *code = createFormattedString("la %s , %d($fp)", reg(x), look_up_ad(y)->bias);
     dump_asm_and_free(code);
-    store(x_str);
-    free(x_str);
-    free(y_str);
+    store(x);
+    free(x);
+    free(y);
 }
 
+// (x) := *(y)
 void ir2asm_8(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // (x) := *(y)
-    char *x_str = sub_str(1), *y_str = sub_str(2);
-    char *code = createFormattedString("lw %s , 0(%s)", reg(x_str), reg(y_str));
+    char *x = sub_str(1), *y = sub_str(2);
+    char *code = createFormattedString("lw %s , 0(%s)", reg(x), reg(y));
     dump_asm_and_free(code);
-    store(x_str);
-    free(x_str);
-    free(y_str);
+    store(x);
+    free(x);
+    free(y);
 }
 
+//*(x) := (y)
 void ir2asm_9(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    //*(x) := (y)
-    char *x_str = sub_str(1), *y_str = sub_str(2);
-    char *code = createFormattedString("sw %s , 0(%s)", reg(y_str), reg(x_str));
+    char *x = sub_str(1), *y = sub_str(2);
+    char *code = createFormattedString("sw %s , 0(%s)", reg(y), reg(x));
     dump_asm_and_free(code);
-    free(x_str);
-    free(y_str);
+    free(x);
+    free(y);
 }
 
+// GOTO (x)
 void ir2asm_10(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // GOTO (x)
-    char *x_str = sub_str(1);
-    char *code = createFormattedString("j %s", x_str);
+    char *x = sub_str(1);
+    char *code = createFormattedString("j %s", x);
     dump_asm_and_free(code);
-    free(x_str);
+    free(x);
 }
 
+// IF (x) (relop) (y) GOTO (z)
 void ir2asm_11(char *str, size_t nmatch, regmatch_t *pmatch)
 {
     static char *bgt = "bgt";
@@ -286,8 +334,7 @@ void ir2asm_11(char *str, size_t nmatch, regmatch_t *pmatch)
     static char *bge = "bge";
     static char *ble = "ble";
     static char *bne = "bne";
-    // IF (x) (relop) (y) GOTO (z)
-    char *x_str = sub_str(1), *relop = sub_str(2), *y_str = sub_str(3), *z_str = sub_str(4);
+    char *x = sub_str(1), *relop = sub_str(2), *y = sub_str(3), *z = sub_str(4);
     char *asm_op;
     if (strcmp(relop, "==") == 0)
         asm_op = beq;
@@ -303,79 +350,110 @@ void ir2asm_11(char *str, size_t nmatch, regmatch_t *pmatch)
         asm_op = ble;
     else
         asm_op = NULL;
-    char *code = createFormattedString("%s %s , %s , %s", asm_op, reg(x_str), reg(y_str), z_str);
+    char *code = createFormattedString("%s %s , %s , %s", asm_op, reg(x), reg(y), z);
     dump_asm_and_free(code);
-    free(x_str);
+    free(x);
     free(relop);
-    free(y_str);
-    free(z_str);
+    free(y);
+    free(z);
 }
 
+// RETURN (x)
 void ir2asm_12(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // RETURN(x)
-    char *x_str = sub_str(1);
-    char *code1 = createFormattedString("move $v0 , %s", reg(x_str));
+    char *x = sub_str(1);
+    char *code1 = createFormattedString("move $v0, %s", reg(x));
     dump_asm_and_free(code1);
+    free(x);
+    dump_asm("move $sp, $fp");
+    dump_asm("lw $fp, 0($sp)");
+    dump_asm("addi $sp, $sp, 4");
     dump_asm("jr $ra");
-    free(x_str);
 }
 
+// DEC (x) (size)
 void ir2asm_13(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // DEC (x) (size)
-    char *x_str = sub_str(1), *s_str = sub_str(2);
-    addr_descriptor_t *ad = malloc(sizeof(addr_descriptor_t));
-    ad->reg = reg_null;
-    sp_bias -= atoi(s_str);
-    ad->bias = sp_bias;
-    insert_ad(createFormattedString("%s", x_str), ad);
+    char *x = sub_str(1), *s_str = sub_str(2);
+    push(x, atoi(s_str));
 }
 
+// ARG (x)
 void ir2asm_14(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // ARG x
-    printf("TODO: ir2asm func %d\n", 14);
+    char *x = sub_str(1);
+    dump_asm("addi $sp, $sp, -4");
+    char *code = createFormattedString("sw %s, 0($sp)", reg(x));
+    dump_asm_and_free(code);
+    free(x);
 }
 
+// (x) := CALL (f)
 void ir2asm_15(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // (x) := CALL (f)
-    char *x_str = sub_str(1), *f_str = sub_str(2);
+    char *x = sub_str(1), *f = sub_str(2);
     // save $ra before jump
-    sp_bias -= 4;
-    char *save_ra = createFormattedString("sw $ra , %d($fp)", sp_bias);
-    dump_asm_and_free(save_ra);
+    dump_asm("addi $sp, $sp, -4");
+    dump_asm("sw $ra, 0($sp)");
     // jump
-    char *code1 = createFormattedString("jal %s", f_str);
+    char *code1 = createFormattedString("jal %s", f);
     dump_asm_and_free(code1);
     // restore $ra after jump
-    char *restore_ra = createFormattedString("lw $ra , %d($fp)", sp_bias);
-    dump_asm_and_free(restore_ra);
-    char *code2 = createFormattedString("move %s , $v0", reg(x_str));
+    dump_asm("lw $ra , 0($sp)");
+    dump_asm("addi $sp, $sp, 4");
+    char *code2 = createFormattedString("move %s, $v0", reg(x));
     dump_asm_and_free(code2);
-    store(x_str);
-    free(x_str);
-    free(f_str);
+    store(x);
+    free(x);
+    free(f);
 }
 
+// PARAM (x)
 void ir2asm_16(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // PARAM x
-    printf("TODO: ir2asm func %d\n", 16);
+    char *x = sub_str(1);
+    addr_descriptor_t *ad = push(x, 4);
+    char *code1 = createFormattedString("lw $t8, %d($fp)", 4 + (next_para_no++) * 4);
+    dump_asm_and_free(code1);
+    char *code2 = createFormattedString("sw $t8, %d($fp)", ad->bias);
+    dump_asm_and_free(code2);
+    free(x);
 }
 
+// READ (x)
 void ir2asm_17(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // READ x
-
-    printf("TODO: ir2asm func %d\n", 17);
+    // save $ra before jump
+    dump_asm("addi $sp, $sp, -4");
+    dump_asm("sw $ra, 0($sp)");
+    // jump
+    dump_asm("jal read");
+    // restore $ra after jump
+    dump_asm("lw $ra , 0($sp)");
+    dump_asm("addi $sp, $sp, 4");
+    // save return value
+    char *x = sub_str(1);
+    char *code2 = createFormattedString("move %s, $v0", reg(x));
+    dump_asm_and_free(code2);
+    store(x);
+    free(x);
 }
 
+// WRITE (x)
 void ir2asm_18(char *str, size_t nmatch, regmatch_t *pmatch)
 {
-    // WRITE x
-    printf("TODO: ir2asm func %d\n", 18);
+    char *x = sub_str(1);
+    char *code = createFormattedString("move $a0, %s", reg(x));
+    dump_asm_and_free(code);
+    free(x);
+    // save $ra before jump
+    dump_asm("addi $sp, $sp, -4");
+    dump_asm("sw $ra, 0($sp)");
+    // jump
+    dump_asm("jal write");
+    // restore $ra after jump
+    dump_asm("lw $ra , 0($sp)");
+    dump_asm("addi $sp, $sp, 4");
 }
 
 typedef void (*trans_func_ptr)(char *str, size_t nmatch, regmatch_t *pmatch);
@@ -388,6 +466,7 @@ trans_func_ptr ir2asm[IR_PATTERN_NUM] = {
 
 void trans_all_ir()
 {
+    dump_asm(start_asm);
     ir_code_t *curr = ir_start;
     if (!curr)
         return;

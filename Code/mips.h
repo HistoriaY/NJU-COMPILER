@@ -55,6 +55,10 @@ typedef struct addr_descriptor_s
     int bias;
 } addr_descriptor_t;
 
+void init_ad_table();
+addr_descriptor_t *look_up_ad(char *var);
+void insert_ad(char *var, addr_descriptor_t *ad);
+
 void init_ir_pattern();
 
 void trans_all_ir();
