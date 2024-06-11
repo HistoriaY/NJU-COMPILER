@@ -137,25 +137,25 @@ void store(char *var)
 // "[a-zA-Z_]\\w*" simplify to "\\w+" there is no worry to trust in ir.c that no number at the beginning
 // !!!maybe exist RE conflict, need to check!!!
 char *ir_pattern_str[IR_PATTERN_NUM] = {
-    "^LABEL (\\w+) :$",                                 // LABEL x :
-    "^FUNCTION (\\w+) :$",                              // FUNCTION f :
-    "^(\\w+) := (#?\\w+)$",                             // x := y
-    "^(\\w+) := (#?\\w+) \\+ (#?\\w+)$",                // x := y + z
-    "^(\\w+) := (#?\\w+) - (#?\\w+)$",                  // x := y - z
-    "^(\\w+) := (#?\\w+) \\* (#?\\w+)$",                // x := y * z
-    "^(\\w+) := (#?\\w+) / (#?\\w+)$",                  // x := y / z
-    "^(\\w+) := &(\\w+)$",                              // x := &y
-    "^(\\w+) := \\*(\\w+)$",                            // x := *y
-    "^\\*(\\w+) := (#?\\w+)$",                          //*x := y
-    "^GOTO (\\w+)$",                                    // GOTO x
-    "^IF (\\w+) (>|<|>=|<=|==|!=) (\\w+) GOTO (\\w+)$", // IF x [relop] y GOTO z
-    "^RETURN (\\w+)$",                                  // RETURN x
-    "^DEC (\\w+) ([0-9]+)$",                            // DEC x [size]
-    "^ARG (\\w+)$",                                     // ARG x
-    "^(\\w+) := CALL (\\w+)$",                          // x := CALL f
-    "^PARAM (\\w+)$",                                   // PARAM x
-    "^READ (\\w+)$",                                    // READ x
-    "^WRITE (\\w+)$"                                    // WRITE x
+    "^LABEL (\\w+) :$",                                   // LABEL x :
+    "^FUNCTION (\\w+) :$",                                // FUNCTION f :
+    "^(\\w+) := (#?\\w+)$",                               // x := y
+    "^(\\w+) := (#?\\w+) \\+ (#?\\w+)$",                  // x := y + z
+    "^(\\w+) := (#?\\w+) - (#?\\w+)$",                    // x := y - z
+    "^(\\w+) := (#?\\w+) \\* (#?\\w+)$",                  // x := y * z
+    "^(\\w+) := (#?\\w+) / (#?\\w+)$",                    // x := y / z
+    "^(\\w+) := &(\\w+)$",                                // x := &y
+    "^(\\w+) := \\*(\\w+)$",                              // x := *y
+    "^\\*(\\w+) := (#?\\w+)$",                            //*x := y
+    "^GOTO (\\w+)$",                                      // GOTO x
+    "^IF (\\w+) (>|<|>=|<=|==|!=) (#?\\w+) GOTO (\\w+)$", // IF x [relop] y GOTO z
+    "^RETURN (\\w+)$",                                    // RETURN x
+    "^DEC (\\w+) ([0-9]+)$",                              // DEC x [size]
+    "^ARG (\\w+)$",                                       // ARG x
+    "^(\\w+) := CALL (\\w+)$",                            // x := CALL f
+    "^PARAM (\\w+)$",                                     // PARAM x
+    "^READ (\\w+)$",                                      // READ x
+    "^WRITE (\\w+)$"                                      // WRITE x
 };
 regex_t ir_pattern[IR_PATTERN_NUM];
 
@@ -190,7 +190,11 @@ void ir2asm_1(char *str, size_t nmatch, regmatch_t *pmatch)
 {
     dump_asm("");
     char *f = sub_str(1);
-    char *code = createFormattedString("%s:", f);
+    char *code;
+    if (strcmp(f, "main") == 0)
+        code = createFormattedString("%s:", f);
+    else
+        code = createFormattedString("_%s:", f);
     dump_asm_and_free(code);
     free(f);
     next_para_no = 1;
@@ -396,7 +400,11 @@ void ir2asm_15(char *str, size_t nmatch, regmatch_t *pmatch)
     dump_asm("addi $sp, $sp, -4");
     dump_asm("sw $ra, 0($sp)");
     // jump
-    char *code1 = createFormattedString("jal %s", f);
+    char *code1;
+    if (strcmp(f, "main") == 0)
+        code1 = createFormattedString("jal %s", f);
+    else
+        code1 = createFormattedString("jal _%s", f);
     dump_asm_and_free(code1);
     // restore $ra after jump
     dump_asm("lw $ra , 0($sp)");
