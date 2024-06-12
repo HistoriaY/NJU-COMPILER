@@ -42,7 +42,7 @@ typedef enum mips_reg
     reg_ra,
     reg_null
 } mips_reg_t;
-mips_reg_t reg_no(char *var);
+mips_reg_t reg_no(char *var, int load);
 
 // typedef struct reg_descriptor_s
 // {
