@@ -14,8 +14,6 @@ ir_code_t *gen_ir_label_code(const char *const label);
 
 ir_code_t *gen_ir_jmp_code(const char *const label);
 
-char *createFormattedString(const char *format, ...);
-
 ir_code_t *new_empty_code();
 
 ir_code_t *merge_code(int count, ...);

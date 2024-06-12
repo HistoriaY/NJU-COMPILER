@@ -3,8 +3,6 @@
 #include "ir.h"
 #include "typedef.h"
 
-char *createFormattedString(const char *format, ...);
-
 #define REG_NUM 33
 typedef enum mips_reg
 {

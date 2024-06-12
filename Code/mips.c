@@ -1,17 +1,9 @@
-#include "mips.h"
 #include <regex.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
-static char *strdup(char *src)
-{
-    size_t len = strlen(src);
-    char *dst = (char *)malloc(len + 1);
-    strncpy(dst, src, len);
-    dst[len] = '\0';
-    return dst;
-}
+#include "mips.h"
+#include "str_func.h"
 
 static const char start_asm[] =
     ".data\n"
@@ -41,8 +33,6 @@ static FILE *file;
 #define dump_asm_and_free(str) \
     dump_asm(str);             \
     free(str)
-// $sp bias to $fp in current frame
-static int sp_bias;
 
 // address descriptor table
 HashTable_t *ad_table;
@@ -470,6 +460,8 @@ void trans_all_ir()
     ir_code_t *curr = ir_start;
     if (!curr)
         return;
+    // $sp bias to $fp in current frame
+    static int sp_bias;
     // first pass, record var bias to $fp in each function stack
     static char *curr_func = NULL;
     do

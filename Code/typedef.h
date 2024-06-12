@@ -109,8 +109,6 @@ typedef struct symbol_s
 
 // symbol table
 extern HashTable_t *symbol_table;
-unsigned int str_hash(void *str);
-int str_compare(void *str1, void *str2);
 void init_symbol_table();
 symbol_t *look_up_symbol(char *name);
 void insert_symbol(symbol_t *symbol_ptr);
