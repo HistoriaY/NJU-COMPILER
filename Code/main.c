@@ -4,6 +4,7 @@
 #include "semantics.h"
 #include "ir.h"
 #include "mips.h"
+#include "str_func.h"
 
 static int error = 0;
 
@@ -55,7 +56,7 @@ int yyparse(void);
 
 int main(int argc, char **argv)
 {
-    int lab = 4;
+    int lab = 5;
     // lab1: ./parser test.cmm
     if (lab == 1)
     {
@@ -134,6 +135,25 @@ int main(int argc, char **argv)
     // lab5: ./parser in.ir out.ir
     else if (lab == 5)
     {
+        FILE *in_ir = fopen(argv[1], "r");
+        if (!in_ir)
+        {
+            perror(argv[1]);
+            return 1;
+        }
+        char buffer[1024];
+        while (fgets(buffer, sizeof(buffer), in_ir))
+        {
+            ir_code_t *tmp = new_empty_code();
+            int len = strlen(buffer);
+            if (buffer[len - 1] == '\n')
+                buffer[len - 1] = '\0';
+            tmp->code_str = strdup(buffer);
+            ir_start = merge_code(2, ir_start, tmp);
+        }
+        output_ir_codes(argv[2]);
+        fclose(in_ir);
+        return 0;
     }
     return 1;
 }
