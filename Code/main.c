@@ -55,27 +55,85 @@ int yyparse(void);
 
 int main(int argc, char **argv)
 {
-    if (argc <= 2)
-        return 1;
-    FILE *f = fopen(argv[1], "r");
-    if (!f)
+    int lab = 4;
+    // lab1: ./parser test.cmm
+    if (lab == 1)
     {
-        perror(argv[1]);
-        return 1;
+        FILE *f = fopen(argv[1], "r");
+        if (!f)
+        {
+            perror(argv[1]);
+            return 1;
+        }
+        yyrestart(f);
+        yyparse();
+        if (!error)
+            print_node_info(root, 0);
+        fclose(f);
+        return 0;
     }
-    yyrestart(f);
-    yyparse();
-    if (!error)
+    // lab2: ./parser test.cmm
+    else if (lab == 2)
     {
-        // print_node_info(root, 0);
-        semantic_analysis(root);
+        FILE *f = fopen(argv[1], "r");
+        if (!f)
+        {
+            perror(argv[1]);
+            return 1;
+        }
+        yyrestart(f);
+        yyparse();
+        if (!error)
+            semantic_analysis(root);
+        fclose(f);
+        return 0;
     }
-    if (!error)
+    // lab3: ./parser test.cmm out.ir
+    else if (lab == 3)
     {
-        trans_Program2ir(root);
-        // output_ir_codes(argv[2]);
-        trans_ir2asm(argv[2]);
+        FILE *f = fopen(argv[1], "r");
+        if (!f)
+        {
+            perror(argv[1]);
+            return 1;
+        }
+        yyrestart(f);
+        yyparse();
+        if (!error)
+            semantic_analysis(root);
+        if (!error)
+        {
+            trans_Program2ir(root);
+            output_ir_codes(argv[2]);
+        }
+        fclose(f);
+        return 0;
     }
-    fclose(f);
-    return 0;
+    // lab4: ./parser test.cmm out.s
+    else if (lab == 4)
+    {
+        FILE *f = fopen(argv[1], "r");
+        if (!f)
+        {
+            perror(argv[1]);
+            return 1;
+        }
+        yyrestart(f);
+        yyparse();
+        if (!error)
+            semantic_analysis(root);
+        if (!error)
+        {
+            trans_Program2ir(root);
+            // output_ir_codes("out.ir");
+            trans_ir2asm(argv[2]);
+        }
+        fclose(f);
+        return 0;
+    }
+    // lab5: ./parser in.ir out.ir
+    else if (lab == 5)
+    {
+    }
+    return 1;
 }
