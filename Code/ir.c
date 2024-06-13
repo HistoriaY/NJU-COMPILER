@@ -679,10 +679,7 @@ void trans_all_ExtDef(node_t *node)
     if (strcmp(node->name, "ExtDef") == 0)
     {
         ir_code_t *code = trans_ExtDef(node);
-        if (ir_start == NULL)
-            ir_start = code;
-        else
-            merge_code(2, ir_start, code);
+        ir_start = merge_code(2, ir_start, code);
         return;
     }
     for (int i = 0; i < 7; ++i)
